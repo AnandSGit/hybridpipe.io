@@ -1,0 +1,44 @@
+# This is Hybrid Framework Configuration File. This file would or should be placed under directory
+# "/opt/<ClientApp>/config/". This file contains both NATS and KAFKA related configurations defined.
+
+# This parser package / module may be made available to other components with-in Apps for their configuration
+# file handling in the future for uniform configuration management.
+
+[NATS]
+# Nats Server List. DEFAULT = 0.0.0.0
+NServers           = "localhost"
+# Listening port. DEFAULT = 4222
+NLPort             = 4222
+# Monitoring Port (Http Port) DEFAULT = 8222
+NMPort             = 8222
+# Cluster Family Port DEFAULT = 6222
+NCPort             = 6222
+# TLS Configuration (Please specify the Fully qualified name)
+NATSCertFile       = "/home/anands/go/src/hybridpipe/platforms/tls/nats-client.pem"
+NATSKeyFile        = "/home/anands/go/src/hybridpipe/platforms/tls/nats-client.key"
+NATSCAFile         = "/home/anands/go/src/hybridpipe/platforms/tls/nats-server-ca.pem"
+# Allows reconnect in case of drop. DEFAULT = true
+NAllow_Reconnect   = true
+# Number of time re-connect attempt to be done. DEFAULT = 10
+NMax_Attempt       = 10
+# Wait time before trying to re-connect. DEFAULT = 5
+NReconnect_Wait    = 5
+# Time (in seconds) before timeout event raised and handled. DEFAULT = 2
+NTimeout           = 2
+
+[KAFKA]
+# Kafka Server List. DEFAULT = 0.0.0.0
+KServers   = "Anand-iMac"
+# Listening port. DEFAULT = 9092
+KLPort     = 9093
+# Timeout of KAFKA Server connection drop / Keepalive.
+KTimeout   = 10
+# TLS Configuration Data
+KAFKACertFile       = "/home/anands/go/src/hybridpipe/platforms/tls/mytestclient.cert.pem"
+KAFKAKeyFile        = "/home/anands/go/src/hybridpipe/platforms/tls/mytestclient.key.pem"
+KAFKACAFile         = "/home/anands/go/src/hybridpipe/platforms/tls/rootca.cert.pem"
+
+[RABBITMQ]
+# RABBIT MQ Server with port
+RServerPort    = "amqp://guest:guest@localhost:5672/"
+
