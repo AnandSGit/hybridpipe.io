@@ -1,0 +1,27 @@
+# This is Hybrid Framework Configuration File. This file would or should be placed under directory
+# "/opt/<ClientApp>/config/". This file contains all communication middleware related configurations defined.
+
+[NATS]
+NServers           = "localhost"
+NLPort             = 4222
+NMPort             = 8222
+NCPort             = 6222
+NATSCertFile       = "/home/anands/go/src/hybridpipe/platforms/tls/nats-client.pem"
+NATSKeyFile        = "/home/anands/go/src/hybridpipe/platforms/tls/nats-client.key"
+NATSCAFile         = "/home/anands/go/src/hybridpipe/platforms/tls/nats-server-ca.pem"
+NAllow_Reconnect   = true
+NMax_Attempt       = 10
+NReconnect_Wait    = 5
+NTimeout           = 2
+
+[KAFKA]
+KServers   = "Anand-iMac"
+KLPort     = 9093
+KTimeout   = 10
+KAFKACertFile       = "/home/anands/go/src/hybridpipe/platforms/tls/mytestclient.cert.pem"
+KAFKAKeyFile        = "/home/anands/go/src/hybridpipe/platforms/tls/mytestclient.key.pem"
+KAFKACAFile         = "/home/anands/go/src/hybridpipe/platforms/tls/rootca.cert.pem"
+
+[RABBITMQ]
+RServerPort    = "amqp://guest:guest@localhost:5672/"
+
