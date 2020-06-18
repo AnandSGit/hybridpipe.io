@@ -17,7 +17,7 @@ import (
 // MQ Platform (contains NATS, RabbitMQ and KAFKA related client configurations) in
 // TOML format. This configuration file should be placed under common Program config
 // files location to make it easier to deploy
-const MQCONFIGFILE = "./drouter_db.toml"
+const MQCONFIGFILE = "./hybridpipe_db.toml"
 
 // -----------------------------------------------------------------------------
 // CLIENT CONFIGURATION FILE HANDLING
