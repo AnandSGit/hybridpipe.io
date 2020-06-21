@@ -4,7 +4,7 @@
 
 ### Tools / Platforms used
 -   [Apache Kafka](https://kafka.apache.org/)
--   [NATS - Open Source Messaging System | Secure, Native Cloud Application Development](https://nats.io/)
+-   [NATS](https://nats.io/)
 -   [RabbitMQ](https://www.rabbitmq.com/)
 -   [NSQ](https://nsq.io/)
 -   [TCP Library for Go](https://golang.org/pkg/net/)
