@@ -1,6 +1,6 @@
 	Date: March 14th 2020
 # HybridPipe
-##### Plugin for Communication system which uses underlying Communication Middleware in transparent manner
+## Plugin for Communication system which uses underlying Communication Middleware in transparent manner
 
 ### Tools / Platforms used
 -   [Apache Kafka](https://kafka.apache.org/)
