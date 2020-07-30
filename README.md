@@ -167,4 +167,4 @@ jd string = `{
 }`
 ```
 
-#### Based on requirement, it is now working on RabbitMQ, TCP and Redis. Embedded system deployable Hybridpipe is under development in Rust (Socket Based).
+##### It is now working on RabbitMQ, TCP and Redis. Embedded system deployable Hybridpipe is under development in Rust (Socket Based).
