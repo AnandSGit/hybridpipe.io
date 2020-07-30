@@ -22,7 +22,7 @@
 ### Developer / User Guide
 HybridPipe have 2 components to define the functionalities required.
 1.  Platform
-2.  DataCommunicator Library
+2.  Piping Library
 
 Platform contains both KAFKA and NATS deployment files.  Kafka would be deployed in baremetal systems (Not as Container) because of the load and size of the system.  Kafka is having functionality dependence with Zookeeper (Installation is included along with Kafka)
 
@@ -167,5 +167,4 @@ jd string = `{
 }`
 ```
 
-#### To send messages via RabbitMQ / NSQ / TCP
-<TODO>
+#### Based on requirement, it is now working on RabbitMQ, TCP and Redis. Embedded system deployable Hybridpipe is under development in Rust (Socket Based).
