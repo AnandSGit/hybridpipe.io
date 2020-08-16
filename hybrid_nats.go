@@ -1,8 +1,5 @@
 package hybridpipe
 
-// -----------------------------------------------------------------------------
-// IMPORT Section
-// -----------------------------------------------------------------------------
 import (
 	"fmt"
 	"log"
@@ -23,25 +20,12 @@ type NatsPacket struct {
 	PipeHandle map[string]*nats.Subscription
 }
 
-// NATSConnect defines the connection procedure for NATS Server. This API would
-// access NATS related configurations from the specified configuration file and
-// load the same into MQF struct object. NATS uses the TLS Certificates and Keys
-// for Authentication and Encryption. TLS object handling is done inside NATS. So
-// We just pass only the files to NATS. Once connection with NATS established, we
-// would initate the Responder function if user wants to respond for Sync queries
-// comes from different subsystems.
+// NATSConnect - Similar to KafkaConnect in NATS context.
 func NATSConnect(np *NatsPacket) error {
-
-	// Create both NatsF and NatsPacket Objects. NatsF will be used to store
-	// all config information including Server URL, Port, User credentials
-	// and other configuration information, which is for Future Expansion.
 	var mq = new(MQF)
 
 	// Configuration File read and updating NatsF Object.
 	ReadConfig(&mq)
-
-	// Using NatsF details, connecting to the NATS Server. Unlike Kafka or RabbitMQ
-	// NATS accepts the Client Cert, CA and Key files directly instead of TLS object
 	nc, e := nats.Connect(mq.NServer,
 		nats.Secure(),
 		nats.ClientCert(mq.NATSCertFile, mq.NATSKeyFile),
@@ -52,27 +36,20 @@ func NATSConnect(np *NatsPacket) error {
 		return er
 	}
 
-	// Store the NATS connection in the Packet Object
 	np.HandleConn = nc
-
-	// Initialize the PipeHandle Map
 	if np.PipeHandle == nil {
 		np.PipeHandle = make(map[string]*nats.Subscription)
 	}
-
-	// We are initializing the ResponseHandler API
 	np.initResponder()
 	return nil
 }
 
-// initResponder defines the implicit local function that would respond for any
-// incoming "Get" requests. The Pipe name defined for the subscription would be
-// local process name. Because we use Queue Subscription, Load balancing would be
-// handled from NATS end. So even if all the instances of this application
-// running in parallel in different / same nodes, only one of the instance would
-// really receive this Get calls. This function would give complete control to
-// the user on how they wants to handle their request and response data. The Request
-// and Response data types and formats should be decided by Interface definition
+// initResponder defines the implicit local function that would respond for any incoming "Get" requests. 
+// The Pipe name defined for the subscription would be local process name. Because we use Queue Subscription, 
+// Load balancing would be handled from NATS end. So even if all the instances of this application running 
+// in parallel in different / same nodes, only one of the instance would really receive this Get calls. 
+// This function would give complete control to the user on how they wants to handle their request and 
+// response data. The Request and Response data types and formats should be decided by Interface definition
 // between those 2 systems, those uses HybridPipe for communication.
 func (np *NatsPacket) initResponder() error {
 
@@ -82,28 +59,18 @@ func (np *NatsPacket) initResponder() error {
 	// Subscribe for the Requests coming to the current running process.
 	if _, e := np.HandleConn.QueueSubscribe(pName.Executable(), pName.Executable(), func(m *nats.Msg) {
 
-		// Accept the incoming message in bytes. Decode the data and call the
-		// client / user provided Response handling Callback. Get the Callback
-		// response Encode the data again and respond for the same NATS message
-		// object. This callback doesn't return any data. So handle all the errors
-		// inside this inline callback.
 		var idata interface{}
 		Decode(m.Data, &idata)
-
 		if np.DataResponder == nil {
 			log.Printf("response object is not initialized with full capacity by the user")
 			return
 		}
 		d := np.DataResponder(idata)
-
-		// Encode the response before replying
 		b, er := Encode(d)
 		if er != nil {
 			log.Printf("%v", er)
 			return
 		}
-
-		// Use the message object to send the respond
 		if er = m.Respond(b); er != nil {
 
 			log.Printf("%v", er)
@@ -146,10 +113,8 @@ func (np *NatsPacket) Distribute(pipe string, d interface{}) error {
 // Same as Request Response Model, in case of Consuming messages, we have used
 // Queue Subscription to enable load balancing in NATS Server end.
 func (np *NatsPacket) Accept(pipe string, fn Process) error {
-
 	// Queue subscribe for message to enable Load balancing as well.
 	s, e := np.HandleConn.QueueSubscribe(pipe, os.Args[0], func(m *nats.Msg) {
-
 		var d interface{}
 		if e := Decode(m.Data, &d); e != nil {
 			log.Printf("%v", e)
@@ -172,16 +137,12 @@ func (np *NatsPacket) Accept(pipe string, fn Process) error {
 // process name and any other process can communicate with this client process via
 // that newly created Pipe (Topic / Subject). This procedure call is a blocking call
 func (np *NatsPacket) Get(pipe string, d interface{}) interface{} {
-
 	var data interface{}
-
-	//Encode the message
 	b, e := Encode(d)
 	if e != nil {
 		log.Printf("%v", e)
 		return e
 	}
-
 	// Calling the Request API from NATS. Response would be stored in the an
 	// interface and same would be passed back to the caller
 	response, er := np.HandleConn.Request(pipe, b, 4*time.Second)
@@ -189,7 +150,6 @@ func (np *NatsPacket) Get(pipe string, d interface{}) interface{} {
 		log.Printf("%v", er)
 		return er
 	}
-
 	// Decode the response from BYTE stream and pass the same back to caller
 	if er = Decode(response.Data, &data); e != nil {
 		log.Printf("%v", er)
@@ -202,7 +162,6 @@ func (np *NatsPacket) Get(pipe string, d interface{}) interface{} {
 // API should be called when user wants to just un-subscribe for some specific
 // Pipes (Topic or Subject).
 func (np *NatsPacket) Remove(pipe string) error {
-
 	es, ok := np.PipeHandle[pipe]
 	if ok == false {
 		e := fmt.Errorf("specified pipe is not subscribed yet. please check the pipe name passed")
@@ -218,6 +177,5 @@ func (np *NatsPacket) Remove(pipe string) error {
 // become un-usable. Unexpected behavior will occur if user tries to use
 // the NPacket object post "Disconnect" call.
 func (np *NatsPacket) Close() {
-
 	np.HandleConn.Close()
 }

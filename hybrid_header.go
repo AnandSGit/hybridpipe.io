@@ -1,24 +1,16 @@
 /*
+Package hybridpipe
 
-Package hybridpipe facilitates communication between different individual processes
-or microservices or components. It allows user to select the underlying communication
-mediums. For example, user can select one of Kafka, NATS and RabbitMQ as the main
-underlying communication middleware.
+Enables communication between 2 micro services / individual processes via Brokers or Routers
+like KAFKA / NATS / RabbitMQ (AMQP) / NSQ / ZeroMQ / default NET package from Golang. This
+system provides common interfacing APIs for all above mentioned Routers. Based on user
+requirement, user can select the Router/Broker as underlying Message Q. Sample applications 
+are implemented to behave as HybridPipe Producer and Consumer.
 
-This component provides the basic building block for enabling communication by allowing
-users / clients to send any user defined information over to the remote applications
-or systems
+NOTE: ONLY KAFKA, NATS and RABBITMQ interfacing are released. Will be updating the notes once
+other brokers support is added. 
 
-This system also enables clients or users to make synchronous calls to the remote
-running microservices and get the response as though it is getting response from
-local function call. This feature is enabled only for subsystems which uses NATS
-as communication middleware. This can be called as "Pseudo Synchronous call".
-
-There are two small sample applications implemented to behave as HybridPipe Producer and
-Consumer. Both are existing under "hybridpipe/hybridproducer" and "hybridpipe/hybridcomsumer"
-directories defined under "hybridpipe".
-
-Usage Example
+Usage Example:
 
 NATS Producer Client :
 	dc.Enable(Person{})
