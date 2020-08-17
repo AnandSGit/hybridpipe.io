@@ -17,7 +17,7 @@
 5. Messaging system should support extra features that may come with platforms like NATS / NSQ etc.
 6. Messaging system should always be expandable for inclusion of any new platforms.
 7. Expose very liitle set of functions and data structures to the Messaging system clients.
-8. HybridPipe implementation will be done in Rust with September Release.
+8. HybridPipe implementation will be done in Rust with November Release.
 
 ### Developer / User Guide
 HybridPipe have 2 components to define the functionalities required.
