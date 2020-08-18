@@ -1,6 +1,6 @@
 package hybridpipe
 
-// NOTE for Maint: Please exceed the line limit of column 140
+// NOTE for Maintenance: Please exceed the line limit of column 140
 
 import (
 	"bytes"
@@ -26,7 +26,7 @@ const (
 
 // HybridPipe defines the interface for HybridPipe Module
 //	Distribute - publishes / broadcasts messages to defined Pipe
-//	Accept - consumes the received message 
+//	Accept - consumes the received message
 //	Get - Pesudo synchronous call to get data from remote service (Works as RPC)
 //	Close - closes the specified connection with Broker / Router
 type HybridPipe interface {
@@ -44,8 +44,8 @@ type HybridPipe interface {
 // application system. This is applicable only for NATS router for now.
 type RespondFn = func(d interface{}) interface{}
 
-// Process defines the callback function that should be called when client 
-// receives the message 
+// Process defines the callback function that should be called when client
+// receives the message
 //	d - Take the input in any data format.
 // Note: This is not applicable for TCP Mode.
 type Process = func(d interface{})
@@ -60,8 +60,8 @@ type Packet struct {
 }
 
 // Medium defines the Broker / Router to be used for the communication with optional
-// parameter of Respond Function definition. This function will be applicable only 
-// for NATS (Only NATS supports pseudo synchronous communication) 
+// parameter of Respond Function definition. This function will be applicable only
+// for NATS (Only NATS supports pseudo synchronous communication)
 //	br - BrokerType
 //	fn - HandleRequest type (Function to handle messaging if user use this
 //	     connection object as Consumer of messages from specific Pipe / Data stream.
