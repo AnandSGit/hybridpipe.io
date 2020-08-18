@@ -27,7 +27,7 @@ type KafkaPacket struct {
 	Server string
 }
 
-// TLS creates the TLS configuration objects to be used by KAFKA (For both 
+// TLS creates the TLS configuration objects to be used by KAFKA (For both
 // Auth and Encryption)
 func TLS(cCert, cKey, caCert string) (*tls.Config, error) {
 
@@ -81,10 +81,9 @@ func KafkaConnect(kp *KafkaPacket) error {
 	return nil
 }
 
-// Dirtribute defines the Producer or Publisher or Sender functionality for Kafka Broker.
-// Distribute defines the Producer / Publisher role and functionality. Writer would be 
-// created for each Pipe comes-in for communication. If Writer already exists, that connection 
-// would be used for this call. Before publishing the message in the specified Pipe, it will be 
+// Distribute defines the Producer / Publisher role and functionality. Writer would be
+// created for each Pipe comes-in for communication. If Writer already exists, that connection
+// would be used for this call. Before publishing the message in the specified Pipe, it will be
 // converted into Byte stream using "Encode" API. Encryption is enabled for the message via TLS.
 func (kp *KafkaPacket) Distribute(pipe string, d interface{}) error {
 
@@ -118,8 +117,8 @@ func (kp *KafkaPacket) Distribute(pipe string, d interface{}) error {
 	return nil
 }
 
-// Accept function defines the Consumer or Subscriber functionality for KAFKA. If Reader object 
-// for the specified Pipe is not available, New Reader Object would be created. From this 
+// Accept function defines the Consumer or Subscriber functionality for KAFKA. If Reader object
+// for the specified Pipe is not available, New Reader Object would be created. From this
 // function Goroutine "Read" will be invoked to handle the incoming messages.
 func (kp *KafkaPacket) Accept(pipe string, fn Process) error {
 
@@ -139,11 +138,11 @@ func (kp *KafkaPacket) Accept(pipe string, fn Process) error {
 	return nil
 }
 
-// Read would access the KAFKA messages in a infinite loop. 
+// Read would access the KAFKA messages in a infinite loop.
 func (kp *KafkaPacket) Read(p string, fn Process) error {
 
 	// This interface should be defined outside the inner level to make sure
-	// we are making the ToData API to work. 
+	// we are making the ToData API to work.
 	var d interface{}
 	c := context.Background()
 
@@ -169,7 +168,7 @@ func (kp *KafkaPacket) Get(pipe string, d interface{}) interface{} {
 	return nil
 }
 
-// Remove will just remove the existing subscription. 
+// Remove will just remove the existing subscription.
 func (kp *KafkaPacket) Remove(pipe string) error {
 
 	es, ok := kp.Readers[pipe]
