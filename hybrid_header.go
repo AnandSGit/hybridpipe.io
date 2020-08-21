@@ -4,11 +4,11 @@ Package hybridpipe
 Enables communication between 2 micro services / individual processes via Brokers or Routers
 like KAFKA / NATS / RabbitMQ (AMQP) / NSQ / ZeroMQ / default NET package from Golang. This
 system provides common interfacing APIs for all above mentioned Routers. Based on user
-requirement, user can select the Router/Broker as underlying Message Q. Sample applications 
+requirement, user can select the Router/Broker as underlying Message Q. Sample applications
 are implemented to behave as HybridPipe Producer and Consumer.
 
 NOTE: ONLY KAFKA, NATS and RABBITMQ interfacing are released. Will be updating the notes once
-other brokers support is added. 
+other brokers support is added.
 
 Usage Example:
 

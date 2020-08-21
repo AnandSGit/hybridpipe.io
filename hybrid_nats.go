@@ -44,11 +44,11 @@ func NATSConnect(np *NatsPacket) error {
 	return nil
 }
 
-// initResponder defines the implicit local function that would respond for any incoming "Get" requests. 
-// The Pipe name defined for the subscription would be local process name. Because we use Queue Subscription, 
-// Load balancing would be handled from NATS end. So even if all the instances of this application running 
-// in parallel in different / same nodes, only one of the instance would really receive this Get calls. 
-// This function would give complete control to the user on how they wants to handle their request and 
+// initResponder defines the implicit local function that would respond for any incoming "Get" requests.
+// The Pipe name defined for the subscription would be local process name. Because we use Queue Subscription,
+// Load balancing would be handled from NATS end. So even if all the instances of this application running
+// in parallel in different / same nodes, only one of the instance would really receive this Get calls.
+// This function would give complete control to the user on how they wants to handle their request and
 // response data. The Request and Response data types and formats should be decided by Interface definition
 // between those 2 systems, those uses HybridPipe for communication.
 func (np *NatsPacket) initResponder() error {

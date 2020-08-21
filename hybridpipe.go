@@ -15,13 +15,16 @@ import (
 //	KAFKA    - https://kafka.apache.org/
 //	RabbitMQ - https://www.rabbitmq.com/
 //	ZeroMQ   - https://zeromq.org/
-//	TCP      - https://golang.org/pkg/net/
+//	AMQP 1.0 - https://www.amqp.org
+//	MQTT     - http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
 const (
 	NATS = iota
 	KAFKA
 	RABBITMQ
 	ZEROMQ
-	TCP
+	AMQP1
+	MQTT
+	NSQ
 )
 
 // HybridPipe defines the interface for HybridPipe Module
@@ -65,15 +68,10 @@ type Packet struct {
 //	br - BrokerType
 //	fn - HandleRequest type (Function to handle messaging if user use this
 //	     connection object as Consumer of messages from specific Pipe / Data stream.
-// TODO: NSQ, ZeroMQ and TCP implementations are under progress
 func Medium(bt int, fn RespondFn) (HybridPipe, error) {
-
-	var np *NatsPacket
-	var kp *KafkaPacket
-	var rp *RabbitPacket
-
 	switch bt {
 	case NATS:
+		var np *NatsPacket
 		np = new(NatsPacket)
 		np.BrokerType = bt
 		np.DataResponder = fn
@@ -82,6 +80,7 @@ func Medium(bt int, fn RespondFn) (HybridPipe, error) {
 		}
 		return np, nil
 	case KAFKA:
+		var kp *KafkaPacket
 		kp = new(KafkaPacket)
 		kp.BrokerType = bt
 		kp.DataResponder = fn
@@ -90,6 +89,7 @@ func Medium(bt int, fn RespondFn) (HybridPipe, error) {
 		}
 		return kp, nil
 	case RABBITMQ:
+		var rp *RabbitPacket
 		rp = new(RabbitPacket)
 		rp.BrokerType = bt
 		rp.DataResponder = fn
@@ -97,6 +97,33 @@ func Medium(bt int, fn RespondFn) (HybridPipe, error) {
 			return nil, e
 		}
 		return rp, nil
+	case ZEROMQ:
+		var zp *ZMQPacket
+		zp = new(ZMQPacket)
+		zp.BrokerType = bt
+		zp.DataResponder = fn
+		if e := ZMQConnect(zp); e != nil {
+			return nil, e
+		}
+		return zp, nil
+	case AMQP1:
+		var ap *AMQPPacket
+		ap = new(AMQPPacket)
+		ap.BrokerType = bt
+		ap.DataResponder = fn
+		if e := AMQPConnect(ap); e != nil {
+			return nil, e
+		}
+		return ap, nil
+	case MQTT:
+		var mp *MQTTPacket
+		mp = new(MQTTPacket)
+		mp.BrokerType = bt
+		mp.DataResponder = fn
+		if e := MQTTConnect(mp); e != nil {
+			return nil, e
+		}
+		return mp, nil
 	default:
 		return nil, fmt.Errorf("Broker: \"Broker Type\" is not supported - %d", bt)
 	}

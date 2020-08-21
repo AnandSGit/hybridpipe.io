@@ -21,10 +21,10 @@ import (
 //	Server - KAFKA Server Target name
 type KafkaPacket struct {
 	Packet
-	Readers map[string]*kafka.Reader
-	Writers map[string]*kafka.Writer
+	Readers    map[string]*kafka.Reader
+	Writers    map[string]*kafka.Writer
 	DialerConn *kafka.Dialer
-	Server string
+	Server     string
 }
 
 // TLS creates the TLS configuration objects to be used by KAFKA (For both
