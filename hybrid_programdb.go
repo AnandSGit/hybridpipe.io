@@ -6,9 +6,9 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// MQ Platform Configuration file is in TOML Format. Design decision should be made to place this
-// file in target system design. Now it is been put in local folder for ease of use. Please refer
-// this file for TOML file format and data.
+// MQCONFIGFILE -. Design decision should be made to place this file in target system design.
+// Now it is been put in local folder for ease of use. Please refer this file for TOML file
+// format and data.
 const MQCONFIGFILE = "./hybridpipe_db.toml"
 
 // MQF define the configuration File content for NATS, RabbitMQ and KAFKA in Golang
