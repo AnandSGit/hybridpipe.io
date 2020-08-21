@@ -5,8 +5,10 @@
 -   [Apache Kafka](https://kafka.apache.org/)
 -   [NATS](https://nats.io/)
 -   [RabbitMQ](https://www.rabbitmq.com/)
+-   [ZeroMQ](https://zeromq.org/)
+-   [AMQP_1.0](https://zeromq.org/)
+-   [MQTT](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)
 -   [NSQ](https://nsq.io/)
--   [TCP Library for Go](https://golang.org/pkg/net/)
 
 ### Design Goals
 1. Components with-in Client Application systems, should be able to communicate between them in both Async and Pseudo Sync communication Model.
@@ -16,7 +18,7 @@
 4. Switching between these message platforms should be very simple and shouldn't involve Hybridpipe re-build and re-deployment.
 5. Messaging system should support extra features that may come with platforms like NATS / NSQ etc.
 6. Messaging system should always be expandable for inclusion of any new platforms.
-7. Expose very liitle set of functions and data structures to the Messaging system clients.
+7. Expose very little set of functions and data structures to the Messaging system clients.
 8. HybridPipe implementation will be done in Rust with November Release.
 
 ### Developer / User Guide
@@ -24,7 +26,8 @@ HybridPipe have 2 components to define the functionalities required.
 1.  Platform
 2.  Piping Library
 
-Platform contains both KAFKA and NATS deployment files.  Kafka would be deployed in baremetal systems (Not as Container) because of the load and size of the system.  Kafka is having functionality dependence with Zookeeper (Installation is included along with Kafka)
+Platform contains both KAFKA and NATS deployment files.  Kafka would be deployed in bare-metal systems (Not as
+ Container) because of the load and size of the system.  Kafka is having functionality dependence with Zookeeper (Installation is included along with Kafka)
 
 #### Commands to Control the messaging platforms
 ```shell
@@ -36,7 +39,8 @@ $ nats-server -p 4222 -D -T --user anands --pass this4now &
 ```
 
 #### NOTE:
-For now, since there is no deployment specification defined for App messaging, we are deploying platforms directly on top of OS to extract better performance (Not as Container, eventhough we have created the Dockerfile to make these systems as containers) - This would be taken in phase2 once we have clear understanding on deployments for overall App systems.
+For now, since there is no deployment specification defined for App messaging, we are deploying platforms directly on
+ top of OS to extract better performance (Not as Container, even-though we have created the Dockerfile to make these systems as containers) - This would be taken in phase2 once we have clear understanding on deployments for overall App systems.
 
 ### TLS
 Using OpenSSL For TLS Client and Server Certificates generation with Local Self signed CA
