@@ -15,8 +15,8 @@ const MQCONFIGFILE = "./hybridpipe_db.toml"
 // structure format. These configurations are embedded into MQF structure for direct
 // access to the data.
 type MQF struct {
-	NatsF `toml:"NATS"`
-	KafkaF `toml:"KAFKA"`
+	NatsF     `toml:"NATS"`
+	KafkaF    `toml:"KAFKA"`
 	RabbitMQF `toml:"RABBITMQ"`
 }
 
@@ -31,29 +31,29 @@ type RabbitMQF struct {
 // will be extended once we are adding the TLS Authentication and Message
 // encoding capability.
 type KafkaF struct {
-	KServer string `toml:"KServers"`
-	KLport int `toml:"KLPort"`
-	KTimeout int `toml:"KTimeout"`
+	KServer       string `toml:"KServers"`
+	KLport        int    `toml:"KLPort"`
+	KTimeout      int    `toml:"KTimeout"`
 	KAFKACertFile string `toml:"KAFKACertFile"`
-	KAFKAKeyFile string `toml:"KAFKAKeyFile"`
-	KAFKACAFile string `toml:"KAFKACAFile"`
+	KAFKAKeyFile  string `toml:"KAFKAKeyFile"`
+	KAFKACAFile   string `toml:"KAFKACAFile"`
 }
 
 // NatsF defines the NATS Server connection configurations. It will be extended
 // once we are adding TLS feature and Message encoding along with user
 // authentication.
 type NatsF struct {
-	NServer string `toml:"NServers"`
-	NLport int `toml:"NLPort"`
-	NMport int `toml:"NMPort"`
-	NCport int `toml:"NCPort"`
-	NATSCertFile string `toml:"NATSCertFile"`
-	NATSKeyFile string `toml:"NATSKeyFile"`
-	NATSCAFile string `toml:"NATSCAFile"`
-	NAllowReconnect bool `toml:"NAllow_Reconnect"`
-	NMaxAttempt int `toml:"NMax_Attempt"`
-	NReconnectWait int `toml:"NReconnect_Wait"`
-	NTimeout int `toml:"NTimeout"`
+	NServer         string `toml:"NServers"`
+	NLport          int    `toml:"NLPort"`
+	NMport          int    `toml:"NMPort"`
+	NCport          int    `toml:"NCPort"`
+	NATSCertFile    string `toml:"NATSCertFile"`
+	NATSKeyFile     string `toml:"NATSKeyFile"`
+	NATSCAFile      string `toml:"NATSCAFile"`
+	NAllowReconnect bool   `toml:"NAllow_Reconnect"`
+	NMaxAttempt     int    `toml:"NMax_Attempt"`
+	NReconnectWait  int    `toml:"NReconnect_Wait"`
+	NTimeout        int    `toml:"NTimeout"`
 }
 
 // ReadConfig defines the function to read the client side configuration file any
