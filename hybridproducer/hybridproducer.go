@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	dc "hybridpipe"
 	"sync"
 	"time"
+
+	dc "hybridpipe.io"
 )
 
 const (
@@ -30,6 +31,7 @@ func produce(w *sync.WaitGroup) {
 	defer w.Done()
 	dc.Enable(Person{})
 
+	/**
 	// Nx - Linked with P
 	Nx := Person{
 		Name:    "Wasim",
@@ -45,21 +47,28 @@ func produce(w *sync.WaitGroup) {
 		NextGen: []string{"Pringle", "NH Fairbrother", "Wasim"},
 		CAge:    []int{45, 37, 39},
 		Next:    &Nx,
-	}
+	}**/
 
-	N, _ := dc.Medium(dc.NATS, nil)
-	R, _ := dc.Medium(dc.RABBITMQ, nil)
-	K, _ := dc.Medium(dc.KAFKA, nil)
-	defer N.Close()
-	defer R.Close()
-	defer K.Close()
+	fmt.Println ("Medium is called....")
+	// N, _ := dc.Medium(dc.NATS, nil)
+	// R, _ := dc.Medium(dc.RABBITMQ, nil)
+	// K, _ := dc.Medium(dc.KAFKA, nil)
+	A, _ := dc.Medium(dc.AMQP1, nil)
 
-	for i := 1; i <= 3; i++ {
-		N.Distribute("Server.iLO.Low", P)
-		R.Distribute("Server.iLO.Med", jd)
-		fmt.Printf("%v", N.Get("mqconsumer", jd))
-		K.Distribute("Server.iLO.High", d)
-		time.Sleep(2 * time.Second)
+	fmt.Println("Close - Defer call is placed")
+	// defer N.Close()
+	// defer R.Close()
+	// defer K.Close()
+	defer A.Close()
+
+	fmt.Println("Dispatch is called")
+	for i := 1; i <= 10; i++ {
+		// N.Distribute("Server.iLO.Low", P)
+		// R.Distribute("Server.iLO.Med", jd)
+		// fmt.Printf("%v", N.Get("mqconsumer", jd))
+		// K.Distribute("Server.iLO.High", d)
+		A.Dispatch("Server.iLO.Mod", d)
+		time.Sleep(1 * time.Second)
 	}
 }
 
