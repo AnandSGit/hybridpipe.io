@@ -21,16 +21,18 @@ type RabbitPacket struct {
 // of Connect procedure we would be reading the RabbitMQ configuration from the
 // Config handler and would dial the connection towards RabbitMQ Server.
 func RabbitConnect(rp *RabbitPacket) error {
-	// Read the RabbitMQ Server information from Config File
 	var e error
-	var mq = new(MQF)
-	ReadConfig(&mq)
 	// Get the Connection Handle to RabbitMQ and Store in Packet Object
-	rp.HandleConn, e = ampq.Dial(mq.RServerPort)
+	rp.HandleConn, e = ampq.Dial(HPipeConfig.RServerPort)
 	if e != nil {
 		log.Printf("%v", e)
 		return e
 	}
+	return nil
+}
+
+// Dispatch will be implemented only for AMQP 1.0 medium
+func (rp *RabbitPacket) Dispatch(pipe string, d interface{}) error {
 	return nil
 }
 

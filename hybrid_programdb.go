@@ -6,18 +6,20 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// MQCONFIGFILE -. Design decision should be made to place this file in target system design.
+// HPDBFILE -. Design decision should be made to place this file in target system design.
 // Now it is been put in local folder for ease of use. Please refer this file for TOML file
 // format and data.
-const MQCONFIGFILE = "./hybridpipe_db.toml"
+const HPDBFILE = "/hybridpipe_db.toml"
 
-// MQF define the configuration File content for NATS, RabbitMQ and KAFKA in Golang
+// HybridDB define the configuration File content for NATS, RabbitMQ and KAFKA in Golang
 // structure format. These configurations are embedded into MQF structure for direct
 // access to the data.
-type MQF struct {
+type HybridDB struct {
 	NatsF     `toml:"NATS"`
 	KafkaF    `toml:"KAFKA"`
 	RabbitMQF `toml:"RABBITMQ"`
+	AMQPF     `toml:"AMQP1"`
+	GeneralF  `toml:"GENERAL"`
 }
 
 // RabbitMQF defines the Rabbit MQ Server connection configurations. This struct
@@ -56,13 +58,26 @@ type NatsF struct {
 	NTimeout        int    `toml:"NTimeout"`
 }
 
-// ReadConfig defines the function to read the client side configuration file any
-// configuration data, which need / should be provided by MQ user would be taken
-// directly from the user by asking to fill a structure.  THIS DATA DETAILS
-// SHOULD BE DEFINED AS PART OF INTERFACE DEFINITION.
-func ReadConfig(fc interface{}) error {
-	if _, e := toml.DecodeFile(MQCONFIGFILE, fc); e != nil {
-		log.Printf("Configuration File - %v Read Error: %v", MQCONFIGFILE, e)
+// AMQPF defines the AMQP Protocol related Connection details in the configuration
+type AMQPF struct {
+	AMQPServer string `toml:"AMQPServer"`
+	AMQPPort   string `toml:"AMQPPort"`
+}
+
+// GeneralF defines the common configuration details like config file location etc
+type GeneralF struct {
+	DBPath string `toml:"DBLocation"`
+}
+
+// HPipeConfig defines the Hybrid Pipe configuration
+var (
+	HPipeConfig = new(HybridDB)
+)
+
+// ReadConfig defines the function to read the HybridPipe configuration file.
+func ReadConfig() error {
+	if _, e := toml.DecodeFile(HPDBFILE, &HPipeConfig); e != nil {
+		log.Printf("Configuration File - %v Read Error: %v", HPDBFILE, e)
 		return e
 	}
 	return nil
