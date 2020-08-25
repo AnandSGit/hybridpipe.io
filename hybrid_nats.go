@@ -22,17 +22,13 @@ type NatsPacket struct {
 
 // NATSConnect - Similar to KafkaConnect in NATS context.
 func NATSConnect(np *NatsPacket) error {
-	var mq = new(MQF)
-
-	// Configuration File read and updating NatsF Object.
-	ReadConfig(&mq)
-	nc, e := nats.Connect(mq.NServer,
+	nc, e := nats.Connect(HPipeConfig.NServer,
 		nats.Secure(),
-		nats.ClientCert(mq.NATSCertFile, mq.NATSKeyFile),
-		nats.RootCAs(mq.NATSCAFile),
+		nats.ClientCert(HPipeConfig.NATSCertFile, HPipeConfig.NATSKeyFile),
+		nats.RootCAs(HPipeConfig.NATSCAFile),
 	)
 	if e != nil {
-		er := fmt.Errorf("NATS Connect Error: %#v, %s", e, mq.NServer)
+		er := fmt.Errorf("NATS Connect Error: %#v, %s", e, HPipeConfig.NServer)
 		return er
 	}
 
@@ -52,13 +48,11 @@ func NATSConnect(np *NatsPacket) error {
 // response data. The Request and Response data types and formats should be decided by Interface definition
 // between those 2 systems, those uses HybridPipe for communication.
 func (np *NatsPacket) initResponder() error {
-
 	myPID := os.Getpid()
 	pName, _ := PS.FindProcess(myPID)
 
 	// Subscribe for the Requests coming to the current running process.
 	if _, e := np.HandleConn.QueueSubscribe(pName.Executable(), pName.Executable(), func(m *nats.Msg) {
-
 		var idata interface{}
 		Decode(m.Data, &idata)
 		if np.DataResponder == nil {
@@ -72,16 +66,19 @@ func (np *NatsPacket) initResponder() error {
 			return
 		}
 		if er = m.Respond(b); er != nil {
-
 			log.Printf("%v", er)
 			return
 		}
 	}); e != nil {
-
 		log.Printf("%v", e)
 		return e
 	}
 	return nil
+}
+
+// Dispatch will be implemented only for AMQP 1.0 medium
+func (np *NatsPacket) Dispatch(pipe string, d interface{}) error {
+	return np.Distribute(pipe, d)
 }
 
 // Distribute defines the Produce or Publisher Function for NATS Medium. User
@@ -91,14 +88,12 @@ func (np *NatsPacket) initResponder() error {
 // as "2 Seconds". If Consumer is not able to handle the incoming message with-in,
 // this timeout period, That message is lost. NATS works in "Shoot & Forget" model
 func (np *NatsPacket) Distribute(pipe string, d interface{}) error {
-
 	// Encode the message
 	b, e := Encode(d)
 	if e != nil {
 		log.Printf("%v", e)
 		return e
 	}
-
 	// Distribute / Publish / Produce the message to the specified Pipe
 	if e = np.HandleConn.Publish(pipe, b); e != nil {
 		log.Printf("%v", e)

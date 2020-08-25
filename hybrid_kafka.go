@@ -56,13 +56,8 @@ func TLS(cCert, cKey, caCert string) (*tls.Config, error) {
 // KafkaConnect creates the Kafka connection & both Reader and Writer stream objects
 // based on the pipe name
 func KafkaConnect(kp *KafkaPacket) error {
-	var mq = new(MQF)
-
-	// Configuration File read and updating MQF Object.
-	ReadConfig(&mq)
-	kp.Server = mq.KServer + ":" + strconv.Itoa(mq.KLport)
-
-	tls, e := TLS(mq.KAFKACertFile, mq.KAFKAKeyFile, mq.KAFKACAFile)
+	kp.Server = HPipeConfig.KServer + ":" + strconv.Itoa(HPipeConfig.KLport)
+	tls, e := TLS(HPipeConfig.KAFKACertFile, HPipeConfig.KAFKAKeyFile, HPipeConfig.KAFKACAFile)
 	if e != nil {
 		log.Printf("%v", e)
 		return e
@@ -81,12 +76,16 @@ func KafkaConnect(kp *KafkaPacket) error {
 	return nil
 }
 
+// Dispatch will be implemented only for AMQP 1.0 medium
+func (kp *KafkaPacket) Dispatch(pipe string, d interface{}) error {
+	return nil
+}
+
 // Distribute defines the Producer / Publisher role and functionality. Writer would be
 // created for each Pipe comes-in for communication. If Writer already exists, that connection
 // would be used for this call. Before publishing the message in the specified Pipe, it will be
 // converted into Byte stream using "Encode" API. Encryption is enabled for the message via TLS.
 func (kp *KafkaPacket) Distribute(pipe string, d interface{}) error {
-
 	// Check for existing Writers. If not existing for this specific Pipe,
 	// then we would create this Writer object for sending the message.
 	if _, a := kp.Writers[pipe]; a == false {
@@ -121,7 +120,6 @@ func (kp *KafkaPacket) Distribute(pipe string, d interface{}) error {
 // for the specified Pipe is not available, New Reader Object would be created. From this
 // function Goroutine "Read" will be invoked to handle the incoming messages.
 func (kp *KafkaPacket) Accept(pipe string, fn Process) error {
-
 	// If for the Reader Object for pipe and create one if required.
 	if _, a := kp.Readers[pipe]; a == false {
 		kp.Readers[pipe] = kafka.NewReader(kafka.ReaderConfig{
@@ -140,7 +138,6 @@ func (kp *KafkaPacket) Accept(pipe string, fn Process) error {
 
 // Read would access the KAFKA messages in a infinite loop.
 func (kp *KafkaPacket) Read(p string, fn Process) error {
-
 	// This interface should be defined outside the inner level to make sure
 	// we are making the ToData API to work.
 	var d interface{}
@@ -164,13 +161,11 @@ func (kp *KafkaPacket) Read(p string, fn Process) error {
 // Get - Not supported for now in Kafka from Message Bus side due to limitations
 // on the quality of the go library implementation. Will be taken-up in future.
 func (kp *KafkaPacket) Get(pipe string, d interface{}) interface{} {
-
 	return nil
 }
 
 // Remove will just remove the existing subscription.
 func (kp *KafkaPacket) Remove(pipe string) error {
-
 	es, ok := kp.Readers[pipe]
 	if ok == false {
 		e := fmt.Errorf("specified pipe is not subscribed yet. please check the pipe name passed")
@@ -184,7 +179,6 @@ func (kp *KafkaPacket) Remove(pipe string) error {
 // Close will disconnect KAFKA Connection. This API should be called when client
 // is completely closing Kafka connection, we would called "Remove" for just removing subscription.
 func (kp *KafkaPacket) Close() {
-
 	// Closing all opened Readers Connections
 	for rp, rc := range kp.Readers {
 		rc.Close()

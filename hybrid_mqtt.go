@@ -9,7 +9,7 @@ type MQTTPacket struct {
 }
 
 // MQTTConnect - Similar to KafkaConnect in NATS context.
-func MQTTConnect(np *MQTTPacket) error {
+func MQTTConnect(mp *MQTTPacket) error {
 	return nil
 }
 
@@ -20,7 +20,12 @@ func MQTTConnect(np *MQTTPacket) error {
 // This function would give complete control to the user on how they wants to handle their request and
 // response data. The Request and Response data types and formats should be decided by Interface definition
 // between those 2 systems, those uses HybridPipe for communication.
-func (np *MQTTPacket) initResponder() error {
+func (mp *MQTTPacket) initResponder() error {
+	return nil
+}
+
+// Dispatch will be implemented only for AMQP 1.0 medium
+func (mp *MQTTPacket) Dispatch(pipe string, d interface{}) error {
 	return nil
 }
 
@@ -30,7 +35,7 @@ func (np *MQTTPacket) initResponder() error {
 // back for their next procedure. By default, we have defined the Consume Timeout
 // as "2 Seconds". If Consumer is not able to handle the incoming message with-in,
 // this timeout period, That message is lost. NATS works in "Shoot & Forget" model
-func (np *MQTTPacket) Distribute(pipe string, d interface{}) error {
+func (mp *MQTTPacket) Distribute(pipe string, d interface{}) error {
 	return nil
 }
 
@@ -38,7 +43,7 @@ func (np *MQTTPacket) Distribute(pipe string, d interface{}) error {
 // be used for handling all the communication with NATS as it is goroutine safe.
 // Same as Request Response Model, in case of Consuming messages, we have used
 // Queue Subscription to enable load balancing in NATS Server end.
-func (np *MQTTPacket) Accept(pipe string, fn Process) error {
+func (mp *MQTTPacket) Accept(pipe string, fn Process) error {
 	return nil
 }
 
@@ -47,20 +52,20 @@ func (np *MQTTPacket) Accept(pipe string, fn Process) error {
 // for HybridPipe Connection object, That would create a Channel with that Client
 // process name and any other process can communicate with this client process via
 // that newly created Pipe (Topic / Subject). This procedure call is a blocking call
-func (np *MQTTPacket) Get(pipe string, d interface{}) interface{} {
+func (mp *MQTTPacket) Get(pipe string, d interface{}) interface{} {
 	return nil
 }
 
 // Remove will close a specific Subscription not the connection with NATS. This
 // API should be called when user wants to just un-subscribe for some specific
 // Pipes (Topic or Subject).
-func (np *MQTTPacket) Remove(pipe string) error {
+func (mp *MQTTPacket) Remove(pipe string) error {
 	return nil
 }
 
 // Close will close NATS connection. After this call, this Object will
 // become un-usable. Unexpected behavior will occur if user tries to use
-// the NPacket object post "Disconnect" call.
-func (np *MQTTPacket) Close() {
+// the mpacket object post "Disconnect" call.
+func (mp *MQTTPacket) Close() {
 
 }

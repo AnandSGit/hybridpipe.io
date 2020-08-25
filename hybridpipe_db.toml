@@ -25,3 +25,9 @@ KAFKACAFile         = "/home/anands/go/src/hybridpipe/platforms/tls/rootca.cert.
 [RABBITMQ]
 RServerPort    = "amqp://guest:guest@localhost:5672/"
 
+[AMQP1]
+AMQPServer = "amqp://guest:guest@localhost/
+AMQPPort   = 5672
+
+[GENERAL]
+DBLocation     = "/Users/anands/go/config"

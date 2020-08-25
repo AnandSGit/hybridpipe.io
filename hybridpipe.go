@@ -33,6 +33,7 @@ const (
 //	Get - Pesudo synchronous call to get data from remote service (Works as RPC)
 //	Close - closes the specified connection with Broker / Router
 type HybridPipe interface {
+	Dispatch(pipe string, data interface{}) error
 	Distribute(pipe string, data interface{}) error
 	Accept(pipe string, fn Process) error
 	Get(pipe string, d interface{}) interface{}
@@ -71,8 +72,7 @@ type Packet struct {
 func Medium(bt int, fn RespondFn) (HybridPipe, error) {
 	switch bt {
 	case NATS:
-		var np *NatsPacket
-		np = new(NatsPacket)
+		np := new(NatsPacket)
 		np.BrokerType = bt
 		np.DataResponder = fn
 		if e := NATSConnect(np); e != nil {
@@ -80,8 +80,7 @@ func Medium(bt int, fn RespondFn) (HybridPipe, error) {
 		}
 		return np, nil
 	case KAFKA:
-		var kp *KafkaPacket
-		kp = new(KafkaPacket)
+		kp := new(KafkaPacket)
 		kp.BrokerType = bt
 		kp.DataResponder = fn
 		if e := KafkaConnect(kp); e != nil {
@@ -89,8 +88,7 @@ func Medium(bt int, fn RespondFn) (HybridPipe, error) {
 		}
 		return kp, nil
 	case RABBITMQ:
-		var rp *RabbitPacket
-		rp = new(RabbitPacket)
+		rp := new(RabbitPacket)
 		rp.BrokerType = bt
 		rp.DataResponder = fn
 		if e := RabbitConnect(rp); e != nil {
@@ -98,8 +96,7 @@ func Medium(bt int, fn RespondFn) (HybridPipe, error) {
 		}
 		return rp, nil
 	case ZEROMQ:
-		var zp *ZMQPacket
-		zp = new(ZMQPacket)
+		zp := new(ZMQPacket)
 		zp.BrokerType = bt
 		zp.DataResponder = fn
 		if e := ZMQConnect(zp); e != nil {
@@ -107,8 +104,7 @@ func Medium(bt int, fn RespondFn) (HybridPipe, error) {
 		}
 		return zp, nil
 	case AMQP1:
-		var ap *AMQPPacket
-		ap = new(AMQPPacket)
+		ap := new(AMQPPacket)
 		ap.BrokerType = bt
 		ap.DataResponder = fn
 		if e := AMQPConnect(ap); e != nil {
@@ -116,8 +112,7 @@ func Medium(bt int, fn RespondFn) (HybridPipe, error) {
 		}
 		return ap, nil
 	case MQTT:
-		var mp *MQTTPacket
-		mp = new(MQTTPacket)
+		mp := new(MQTTPacket)
 		mp.BrokerType = bt
 		mp.DataResponder = fn
 		if e := MQTTConnect(mp); e != nil {

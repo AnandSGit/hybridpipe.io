@@ -1,26 +1,56 @@
 package hybridpipe
 
+import (
+	"fmt"
+
+	"github.com/Azure/go-amqp"
+)
+
 // AMQPPacket defines the ZeroMQ Message Packet Object. Apart from Base Packet, it
 // will contain Connection Object and identifiers related to ZeroMQ.
 // 	HandleConn - ZeroMQ Connection Object
 // 	PipeHandle - Create the map between Pipe name and NATS Subscription
 type AMQPPacket struct {
 	Packet
+	HandleConn *amqp.Client
+	MSenders   map[string]*amqp.Session
+	MReceivers map[string]*amqp.Session
 }
 
 // AMQPConnect - Similar to KafkaConnect in NATS context.
-func AMQPConnect(np *AMQPPacket) error {
+func AMQPConnect(ap *AMQPPacket) error {
+	// In case where HandleConn is already created, we don't recreate the connection again.
+	if ap.HandleConn == nil {
+		conn, e := amqp.Dial(HPipeConfig.AMQPServer)
+		if e != nil {
+			er := fmt.Errorf("AMQP Connect Error: %#v, %s", e, HPipeConfig.AMQPServer)
+			return er
+		}
+		ap.HandleConn = conn
+	}
+
+	// Initialize the session maps for both dispatcher and receiver.
+	if ap.MSenders == nil {
+		ap.MSenders = make(map[string]*amqp.Session)
+	}
+	if ap.MReceivers == nil {
+		ap.MReceivers = make(map[string]*amqp.Session)
+	}
 	return nil
 }
 
-// initResponder defines the implicit local function that would respond for any incoming "Get" requests.
-// The Pipe name defined for the subscription would be local process name. Because we use Queue Subscription,
-// Load balancing would be handled from NATS end. So even if all the instances of this application running
-// in parallel in different / same nodes, only one of the instance would really receive this Get calls.
-// This function would give complete control to the user on how they wants to handle their request and
-// response data. The Request and Response data types and formats should be decided by Interface definition
-// between those 2 systems, those uses HybridPipe for communication.
-func (np *AMQPPacket) initResponder() error {
+// Dispatch would send a user defined message to another microservice or service or application.
+func (ap *AMQPPacket) Dispatch(pipe string, d interface{}) error {
+	_, isAvail := ap.MSenders[pipe]
+	if !isAvail {
+		var e error
+		ap.MSenders[pipe], e = ap.HandleConn.NewSession()
+		if e != nil {
+			er := fmt.Errorf("AMQP Session Error: %#v", e)
+			return er
+		}
+	}
+
 	return nil
 }
 
@@ -30,15 +60,15 @@ func (np *AMQPPacket) initResponder() error {
 // back for their next procedure. By default, we have defined the Consume Timeout
 // as "2 Seconds". If Consumer is not able to handle the incoming message with-in,
 // this timeout period, That message is lost. NATS works in "Shoot & Forget" model
-func (np *AMQPPacket) Distribute(pipe string, d interface{}) error {
-	return nil
+func (ap *AMQPPacket) Distribute(pipe string, d interface{}) error {
+	return ap.Dispatch(pipe, d)
 }
 
 // Accept defines the Subscription / Consume procedure. Again same connection would
 // be used for handling all the communication with NATS as it is goroutine safe.
 // Same as Request Response Model, in case of Consuming messages, we have used
 // Queue Subscription to enable load balancing in NATS Server end.
-func (np *AMQPPacket) Accept(pipe string, fn Process) error {
+func (ap *AMQPPacket) Accept(pipe string, fn Process) error {
 	return nil
 }
 
@@ -47,20 +77,19 @@ func (np *AMQPPacket) Accept(pipe string, fn Process) error {
 // for HybridPipe Connection object, That would create a Channel with that Client
 // process name and any other process can communicate with this client process via
 // that newly created Pipe (Topic / Subject). This procedure call is a blocking call
-func (np *AMQPPacket) Get(pipe string, d interface{}) interface{} {
+func (ap *AMQPPacket) Get(pipe string, d interface{}) interface{} {
 	return nil
 }
 
 // Remove will close a specific Subscription not the connection with NATS. This
 // API should be called when user wants to just un-subscribe for some specific
 // Pipes (Topic or Subject).
-func (np *AMQPPacket) Remove(pipe string) error {
+func (ap *AMQPPacket) Remove(pipe string) error {
 	return nil
 }
 
 // Close will close NATS connection. After this call, this Object will
 // become un-usable. Unexpected behavior will occur if user tries to use
-// the NPacket object post "Disconnect" call.
-func (np *AMQPPacket) Close() {
-
+// the apacket object post "Disconnect" call.
+func (ap *AMQPPacket) Close() {
 }
