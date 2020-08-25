@@ -1,7 +1,10 @@
 package hybridpipe
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/Azure/go-amqp"
 )
@@ -17,7 +20,7 @@ type AMQPPacket struct {
 	MReceivers map[string]*amqp.Session
 }
 
-// AMQPConnect - Similar to KafkaConnect in NATS context.
+// AMQPConnect - Similar to KafkaConnect in AMQP context.
 func AMQPConnect(ap *AMQPPacket) error {
 	// In case where HandleConn is already created, we don't recreate the connection again.
 	if ap.HandleConn == nil {
@@ -50,7 +53,27 @@ func (ap *AMQPPacket) Dispatch(pipe string, d interface{}) error {
 			return er
 		}
 	}
+	Ctx := context.Background()
+	S, e := ap.MSenders[pipe].NewSender(amqp.LinkTargetAddress("/" + pipe))
+	if e != nil {
+		er := fmt.Errorf("Creating Sender Link - FAILED : %#v", e)
+		return er
+	}
 
+	// Message Encoding done
+	b, e := Encode(d)
+	if e != nil {
+		log.Printf("%v", e)
+		return e
+	}
+
+	// Dispatching the message.
+	Ctx, Cancel := context.WithTimeout(Ctx, 5*time.Second)
+	defer Cancel()
+	if e = S.Send(Ctx, amqp.NewMessage(b)); e != nil {
+		er := fmt.Errorf("Message dispatch Error - %#v", e)
+		return er
+	}
 	return nil
 }
 
