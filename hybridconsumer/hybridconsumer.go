@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	dc "hybridpipe"
 	"os"
 	"os/exec"
 	"runtime"
 	"sync"
 	"time"
+
+	dc "hybridpipe.io"
 )
 
 // Person struct
@@ -19,6 +20,7 @@ type Person struct {
 	Next    *Person
 }
 
+/**
 // KafkaHandler Procedure
 func KafkaHandler(k interface{}) {
 	fmt.Println("Message Sent via KAFKA: ", k)
@@ -37,6 +39,12 @@ func NatsHandler(n interface{}) {
 // RabbitHandler Procedure
 func RabbitHandler(r interface{}) {
 	fmt.Println("Message Sent via RabbitMQ: ", r)
+}
+**/
+
+// AMQPHandler Procedure
+func AMQPHandler(am interface{}) {
+	fmt.Println("Message Sent via AMQP: ", am)
 }
 
 var clear map[string]func() //create a map for storing clear funcs
@@ -68,20 +76,26 @@ func consume() {
 	// initClear()
 	// doEvery(15 * time.Second)
 
-	N, _ := dc.Medium(dc.NATS, RespondHandler)
-	R, _ := dc.Medium(dc.RABBITMQ, nil)
-	K, _ := dc.Medium(dc.KAFKA, nil)
+	// N, _ := dc.Medium(dc.NATS, RespondHandler)
+	// R, _ := dc.Medium(dc.RABBITMQ, nil)
+	// K, _ := dc.Medium(dc.KAFKA, nil)
+	A, _ := dc.Medium(dc.AMQP1, nil)
 
-	defer N.Close()
-	defer K.Close()
-	defer R.Close()
+	// defer N.Close()
+	// defer K.Close()
+	// defer R.Close()
+	defer A.Close()
 
-	N.Accept("Server.iLO.Low", NatsHandler)
-	N.Remove("Server.iLO.Low")
-	K.Accept("Server.iLO.High", KafkaHandler)
-	K.Remove("Server.iLO.High")
-	R.Accept("Server.iLO.Med", RabbitHandler)
-	R.Remove("Server.iLO.Mid")
+	fmt.Println("Just before Accept")
+	// N.Accept("Server.iLO.Low", NatsHandler)
+	// N.Remove("Server.iLO.Low")
+	// K.Accept("Server.iLO.High", KafkaHandler)
+	// K.Remove("Server.iLO.High")
+	// R.Accept("Server.iLO.Med", RabbitHandler)
+	// R.Remove("Server.iLO.Mid")
+	A.Accept("Server.iLO.Mod", AMQPHandler)
+	fmt.Println("Accept Done")
+	A.Remove("Server.iLO.Mod")
 }
 
 func main() {
