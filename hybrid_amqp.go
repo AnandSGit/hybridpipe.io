@@ -75,19 +75,20 @@ func (ap *AMQPPacket) Accept(pipe string, fn Process) error {
 	}
 	receiver, e := session.NewReceiver(
 		amqp.LinkTargetAddress(pipe),
-		amqp.LinkCredit(10),
+		amqp.LinkCredit(1),
 	)
 	if e != nil {
 		er := fmt.Errorf("Creating Receiver Link - FAILED : %#v", e)
 		return er
 	}
-	go ap.read(receiver, pipe, fn)
+	ap.read(receiver, pipe, fn)
 	return nil
 }
 
 func (ap *AMQPPacket) read(r *amqp.Receiver, p string, fn Process) error {
 	c := context.Background()
 	defer r.Close(c)
+	fmt.Println("Just before FOR loop")
 	for {
 		m, e := r.Receive(c)
 		if e != nil {
