@@ -29,8 +29,8 @@ func consume(w *sync.WaitGroup) {
 	defer dc.Enable(Person{})
 
 	A, _ := dc.Medium(dc.AMQP1, nil)
-	// defer A.Close()
-	fmt.Println(A.Accept("/ServerIO", AMQPHandler))
+	defer A.Close()
+	fmt.Println(A.Accept("ServerIO", AMQPHandler))
 }
 
 func main() {

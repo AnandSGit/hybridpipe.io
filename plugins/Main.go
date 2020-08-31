@@ -19,8 +19,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Creating AMQP session:", err)
 	}
+	ctx := context.Background()
 
-	/**
 	go func() {
 		sender, err := session.NewSender(
 			amqp.LinkTargetAddress("/ServerIO"),
@@ -32,12 +32,14 @@ func main() {
 			err = sender.Send(ctx, amqp.NewMessage([]byte("Hello!")))
 			if err != nil {
 				log.Fatal("Sending message:", err)
+			} else {
+				fmt.Println("Message sent successfully!")
 			}
 		}
 		sender.Close(ctx)
 	}()
-	**/
 
+	/**
 	receiver, err := session.NewReceiver(
 		amqp.LinkSourceAddress("/ServerIO"),
 		amqp.LinkCredit(10),
@@ -45,7 +47,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Creating receiver link:", err)
 	}
-	ctx := context.Background()
 	for {
 		msg, err := receiver.Receive(ctx)
 		if err != nil {
@@ -55,4 +56,5 @@ func main() {
 		msg.Accept(ctx)
 		fmt.Printf("Message received: %s\n", msg.GetData())
 	}
+	**/
 }

@@ -59,8 +59,8 @@ func produce(w *sync.WaitGroup) {
 	for i := 1; i <= 10; i++ {
 		// N.Distribute("Server.iLO.Low", P)
 		// fmt.Printf("%v", N.Get("mqconsumer", jd))
-		fmt.Println(A.Dispatch("/ServerIO", jd))
-		fmt.Println(A.Dispatch("/ServerIO", P))
+		fmt.Println(A.Dispatch("ServerIO", jd))
+		fmt.Println(A.Dispatch("ServerIO", P))
 	}
 }
 
