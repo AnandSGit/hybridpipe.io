@@ -94,8 +94,6 @@ func (ap *AMQPPacket) read(r *amqp.Receiver, p string, fn Process) error {
 		if e != nil {
 			er := fmt.Errorf("Message Receive Error - %#v", e)
 			return er
-		} else {
-			fmt.Println("OK")
 		}
 		m.Accept(c)
 		fn(m.GetData())
