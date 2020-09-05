@@ -5,11 +5,10 @@ package hybridpipe
 // 	HandleConn - ZeroMQ Connection Object
 // 	PipeHandle - Create the map between Pipe name and NATS Subscription
 type ZMQPacket struct {
-	Packet
 }
 
-// ZMQConnect - Similar to KafkaConnect in NATS context.
-func ZMQConnect(zp *ZMQPacket) error {
+// Connect - Similar to KafkaConnect in NATS context.
+func (zp *ZMQPacket) Connect() error {
 	return nil
 }
 

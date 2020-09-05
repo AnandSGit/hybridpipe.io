@@ -13,12 +13,11 @@ import (
 // 	HandleConn - ZeroMQ Connection Object
 // 	PipeHandle - Create the map between Pipe name and NATS Subscription
 type AMQPPacket struct {
-	Packet
 	HandleConn *amqp.Client
 }
 
-// AMQPConnect - Similar to KafkaConnect in AMQP context.
-func AMQPConnect(ap *AMQPPacket) error {
+// Connect - Similar to KafkaConnect in AMQP context.
+func (ap *AMQPPacket) Connect() error {
 	// In case where HandleConn is already created, we don't recreate the connection again.
 	if ap.HandleConn == nil {
 		conn, e := amqp.Dial(HPipeConfig.AMQPServer)
@@ -57,12 +56,6 @@ func (ap *AMQPPacket) Dispatch(pipe string, d interface{}) error {
 		return er
 	}
 	return nil
-}
-
-// Distribute - Will call Dispatch with the same parameter. Implemented just
-// to support other model of communications. (NATS, KAFKA etc)
-func (ap *AMQPPacket) Distribute(pipe string, d interface{}) error {
-	return ap.Dispatch(pipe, d)
 }
 
 // Accept defines the Subscription / Consume procedure. The Message processing

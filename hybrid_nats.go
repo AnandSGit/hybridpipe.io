@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	PS "github.com/mitchellh/go-ps"
 	nats "github.com/nats-io/nats.go"
 )
 
@@ -15,18 +14,20 @@ import (
 // 	HandleConn - NATS Connection Object
 // 	PipeHandle - Create the map between Subject name and NATS Subscription
 type NatsPacket struct {
-	Packet
 	HandleConn *nats.Conn
 	PipeHandle map[string]*nats.Subscription
 }
 
-// NATSConnect - Similar to KafkaConnect in NATS context.
-func NATSConnect(np *NatsPacket) error {
+// Connect - Similar to KafkaConnect in NATS context.
+func (np *NatsPacket) Connect() error {
+	nc, e := nats.Connect(HPipeConfig.NServer)
+	/**
 	nc, e := nats.Connect(HPipeConfig.NServer,
 		nats.Secure(),
 		nats.ClientCert(HPipeConfig.NATSCertFile, HPipeConfig.NATSKeyFile),
 		nats.RootCAs(HPipeConfig.NATSCAFile),
 	)
+	**/
 	if e != nil {
 		er := fmt.Errorf("NATS Connect Error: %#v, %s", e, HPipeConfig.NServer)
 		return er
@@ -36,58 +37,16 @@ func NATSConnect(np *NatsPacket) error {
 	if np.PipeHandle == nil {
 		np.PipeHandle = make(map[string]*nats.Subscription)
 	}
-	np.initResponder()
 	return nil
 }
 
-// initResponder defines the implicit local function that would respond for any incoming "Get" requests.
-// The Pipe name defined for the subscription would be local process name. Because we use Queue Subscription,
-// Load balancing would be handled from NATS end. So even if all the instances of this application running
-// in parallel in different / same nodes, only one of the instance would really receive this Get calls.
-// This function would give complete control to the user on how they wants to handle their request and
-// response data. The Request and Response data types and formats should be decided by Interface definition
-// between those 2 systems, those uses HybridPipe for communication.
-func (np *NatsPacket) initResponder() error {
-	myPID := os.Getpid()
-	pName, _ := PS.FindProcess(myPID)
-
-	// Subscribe for the Requests coming to the current running process.
-	if _, e := np.HandleConn.QueueSubscribe(pName.Executable(), pName.Executable(), func(m *nats.Msg) {
-		var idata interface{}
-		Decode(m.Data, &idata)
-		if np.DataResponder == nil {
-			log.Printf("response object is not initialized with full capacity by the user")
-			return
-		}
-		d := np.DataResponder(idata)
-		b, er := Encode(d)
-		if er != nil {
-			log.Printf("%v", er)
-			return
-		}
-		if er = m.Respond(b); er != nil {
-			log.Printf("%v", er)
-			return
-		}
-	}); e != nil {
-		log.Printf("%v", e)
-		return e
-	}
-	return nil
-}
-
-// Dispatch will be implemented only for AMQP 1.0 medium
-func (np *NatsPacket) Dispatch(pipe string, d interface{}) error {
-	return np.Distribute(pipe, d)
-}
-
-// Distribute defines the Produce or Publisher Function for NATS Medium. User
+// Dispatch defines the Produce or Publisher Function for NATS Medium. User
 // just needs to pass to which Pipe message needs to be passed and Message itself
 // This is non blocking call. So once Publish done, client would get the control
 // back for their next procedure. By default, we have defined the Consume Timeout
 // as "2 Seconds". If Consumer is not able to handle the incoming message with-in,
 // this timeout period, That message is lost. NATS works in "Shoot & Forget" model
-func (np *NatsPacket) Distribute(pipe string, d interface{}) error {
+func (np *NatsPacket) Dispatch(pipe string, d interface{}) error {
 	// Encode the message
 	b, e := Encode(d)
 	if e != nil {

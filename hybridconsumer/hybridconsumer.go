@@ -28,8 +28,8 @@ func consume(w *sync.WaitGroup) {
 	defer w.Done()
 	defer dc.Enable(Person{})
 
-	A, _ := dc.Medium(dc.AMQP1, nil)
-	defer A.Close()
+	A, _ := dc.DeployRouter(dc.NATS, nil)
+	// defer A.Close()
 	fmt.Println(A.Accept("ServerIO", AMQPHandler))
 }
 

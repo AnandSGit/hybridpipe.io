@@ -20,7 +20,6 @@ import (
 //	DialerConn - Kafka Connection Object
 //	Server - KAFKA Server Target name
 type KafkaPacket struct {
-	Packet
 	Readers    map[string]*kafka.Reader
 	Writers    map[string]*kafka.Writer
 	DialerConn *kafka.Dialer
@@ -53,9 +52,9 @@ func TLS(cCert, cKey, caCert string) (*tls.Config, error) {
 	return &tlsConfig, e2
 }
 
-// KafkaConnect creates the Kafka connection & both Reader and Writer stream objects
+// Connect creates the Kafka connection & both Reader and Writer stream objects
 // based on the pipe name
-func KafkaConnect(kp *KafkaPacket) error {
+func (kp *KafkaPacket) Connect() error {
 	kp.Server = HPipeConfig.KServer + ":" + strconv.Itoa(HPipeConfig.KLport)
 	tls, e := TLS(HPipeConfig.KAFKACertFile, HPipeConfig.KAFKAKeyFile, HPipeConfig.KAFKACAFile)
 	if e != nil {

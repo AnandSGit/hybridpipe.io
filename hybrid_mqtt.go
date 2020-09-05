@@ -5,21 +5,15 @@ package hybridpipe
 // 	HandleConn - ZeroMQ Connection Object
 // 	PipeHandle - Create the map between Pipe name and NATS Subscription
 type MQTTPacket struct {
-	Packet
 }
 
-// MQTTConnect - Similar to KafkaConnect in NATS context.
-func MQTTConnect(mp *MQTTPacket) error {
+// Connect - Similar to KafkaConnect in NATS context.
+func (mp *MQTTPacket) Connect() error {
 	return nil
 }
 
 // initResponder defines the implicit local function that would respond for any incoming "Get" requests.
-// The Pipe name defined for the subscription would be local process name. Because we use Queue Subscription,
-// Load balancing would be handled from NATS end. So even if all the instances of this application running
-// in parallel in different / same nodes, only one of the instance would really receive this Get calls.
-// This function would give complete control to the user on how they wants to handle their request and
-// response data. The Request and Response data types and formats should be decided by Interface definition
-// between those 2 systems, those uses HybridPipe for communication.
+// No Implementation required.
 func (mp *MQTTPacket) initResponder() error {
 	return nil
 }
@@ -29,29 +23,12 @@ func (mp *MQTTPacket) Dispatch(pipe string, d interface{}) error {
 	return nil
 }
 
-// Distribute defines the Produce or Publisher Function for NATS Medium. User
-// just needs to pass to which Pipe message needs to be passed and Message itself
-// This is non blocking call. So once Publish done, client would get the control
-// back for their next procedure. By default, we have defined the Consume Timeout
-// as "2 Seconds". If Consumer is not able to handle the incoming message with-in,
-// this timeout period, That message is lost. NATS works in "Shoot & Forget" model
-func (mp *MQTTPacket) Distribute(pipe string, d interface{}) error {
-	return nil
-}
-
-// Accept defines the Subscription / Consume procedure. Again same connection would
-// be used for handling all the communication with NATS as it is goroutine safe.
-// Same as Request Response Model, in case of Consuming messages, we have used
-// Queue Subscription to enable load balancing in NATS Server end.
+// Accept defines the Subscription / Consume procedure.
 func (mp *MQTTPacket) Accept(pipe string, fn Process) error {
 	return nil
 }
 
-// Get would initiate a Request a Sync request from remote process. Here Pipe name
-// should be the remote process name. If the Sync Request Response Facility enabled
-// for HybridPipe Connection object, That would create a Channel with that Client
-// process name and any other process can communicate with this client process via
-// that newly created Pipe (Topic / Subject). This procedure call is a blocking call
+// Get would initiate a Request a Sync request from remote process.
 func (mp *MQTTPacket) Get(pipe string, d interface{}) interface{} {
 	return nil
 }
