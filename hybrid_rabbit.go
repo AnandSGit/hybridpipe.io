@@ -8,7 +8,6 @@ import (
 
 // RabbitPacket - Please refer KafkaPacket
 type RabbitPacket struct {
-	Packet
 	// HandleConn holds the connection object to RabbitMQ Server
 	HandleConn *ampq.Connection
 	// RChannel holds the RabbitMQ Connection Object locally. Single connection would
@@ -17,10 +16,10 @@ type RabbitPacket struct {
 	RChannel *ampq.Channel
 }
 
-// RabbitConnect defines the connection procedure for RabbitMQ Server. As part
+// Connect defines the connection procedure for RabbitMQ Server. As part
 // of Connect procedure we would be reading the RabbitMQ configuration from the
 // Config handler and would dial the connection towards RabbitMQ Server.
-func RabbitConnect(rp *RabbitPacket) error {
+func (rp *RabbitPacket) Connect() error {
 	var e error
 	// Get the Connection Handle to RabbitMQ and Store in Packet Object
 	rp.HandleConn, e = ampq.Dial(HPipeConfig.RServerPort)

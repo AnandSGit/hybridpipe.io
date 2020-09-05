@@ -5,8 +5,8 @@ package hybridpipe
 import (
 	"bytes"
 	"encoding/gob"
-	"fmt"
 	"log"
+	"reflect"
 )
 
 // Broker ID - User can use this ID to select their communication medium
@@ -24,19 +24,31 @@ const (
 	ZEROMQ
 	AMQP1
 	MQTT
-	NSQ
 )
 
+// RoutersMap defines Broker or Router Registry for Pipe creation
+var RoutersMap = make(map[int]reflect.Type)
+
+// Initialize the Register Map with all supported interfaces
+func init() {
+	RoutersMap[NATS] = reflect.TypeOf((*NatsPacket)(nil)).Elem()
+	RoutersMap[KAFKA] = reflect.TypeOf((*KafkaPacket)(nil)).Elem()
+	RoutersMap[RABBITMQ] = reflect.TypeOf((*RabbitPacket)(nil)).Elem()
+	RoutersMap[ZEROMQ] = reflect.TypeOf((*ZMQPacket)(nil)).Elem()
+	RoutersMap[AMQP1] = reflect.TypeOf((*AMQPPacket)(nil)).Elem()
+	RoutersMap[MQTT] = reflect.TypeOf((*MQTTPacket)(nil)).Elem()
+}
+
 // HybridPipe defines the interface for HybridPipe Module
-//	Distribute - publishes / broadcasts messages to defined Pipe
+//	Connect - Would connect with right Router backend
+//	Dispatch - publishes / broadcasts messages to defined Pipe
 //	Accept - consumes the received message
 //	Get - Pesudo synchronous call to get data from remote service (Works as RPC)
 //	Close - closes the specified connection with Broker / Router
 type HybridPipe interface {
+	Connect() error
 	Dispatch(pipe string, data interface{}) error
-	Distribute(pipe string, data interface{}) error
 	Accept(pipe string, fn Process) error
-	Get(pipe string, d interface{}) interface{}
 	Remove(pipe string) error
 	Close()
 }
@@ -54,74 +66,18 @@ type RespondFn = func(d interface{}) interface{}
 // Note: This is not applicable for TCP Mode.
 type Process = func(d interface{})
 
-// Packet defines Broker / Router which is to be used for data routing & defines
-// the response function when "Get" interface is called for this service.
-// 	BrokerType - Refer above defined Constants for possible values
-// 	DataResponder - Refer HandleResponse Type description
-type Packet struct {
-	BrokerType    int
-	DataResponder RespondFn
-}
-
-// Medium defines the Broker / Router to be used for the communication with optional
+// DeployRouter defines the Broker / Router to be used for the communication with optional
 // parameter of Respond Function definition. This function will be applicable only
 // for NATS (Only NATS supports pseudo synchronous communication)
 //	br - BrokerType
 //	fn - HandleRequest type (Function to handle messaging if user use this
 //	     connection object as Consumer of messages from specific Pipe / Data stream.
-func Medium(bt int, fn RespondFn) (HybridPipe, error) {
-	switch bt {
-	case NATS:
-		np := new(NatsPacket)
-		np.BrokerType = bt
-		np.DataResponder = fn
-		if e := NATSConnect(np); e != nil {
-			return nil, e
-		}
-		return np, nil
-	case KAFKA:
-		kp := new(KafkaPacket)
-		kp.BrokerType = bt
-		kp.DataResponder = fn
-		if e := KafkaConnect(kp); e != nil {
-			return nil, e
-		}
-		return kp, nil
-	case RABBITMQ:
-		rp := new(RabbitPacket)
-		rp.BrokerType = bt
-		rp.DataResponder = fn
-		if e := RabbitConnect(rp); e != nil {
-			return nil, e
-		}
-		return rp, nil
-	case ZEROMQ:
-		zp := new(ZMQPacket)
-		zp.BrokerType = bt
-		zp.DataResponder = fn
-		if e := ZMQConnect(zp); e != nil {
-			return nil, e
-		}
-		return zp, nil
-	case AMQP1:
-		ap := new(AMQPPacket)
-		ap.BrokerType = bt
-		ap.DataResponder = fn
-		if e := AMQPConnect(ap); e != nil {
-			return nil, e
-		}
-		return ap, nil
-	case MQTT:
-		mp := new(MQTTPacket)
-		mp.BrokerType = bt
-		mp.DataResponder = fn
-		if e := MQTTConnect(mp); e != nil {
-			return nil, e
-		}
-		return mp, nil
-	default:
-		return nil, fmt.Errorf("Broker: \"Broker Type\" is not supported - %d", bt)
+func DeployRouter(bt int, fn RespondFn) (HybridPipe, error) {
+	var p HybridPipe = reflect.New(RoutersMap[bt]).Interface().(HybridPipe)
+	if e := p.Connect(); e != nil {
+		return nil, e
 	}
+	return p, nil
 }
 
 // Encode would user defined data (To be transmitted) into Byte stream.

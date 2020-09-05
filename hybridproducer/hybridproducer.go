@@ -48,19 +48,19 @@ func produce(w *sync.WaitGroup) {
 	}
 
 	fmt.Println("Medium is called....")
-	// N, _ := dc.Medium(dc.NATS, nil)
-	A, _ := dc.Medium(dc.AMQP1, nil)
+	N, _ := dc.DeployRouter(dc.NATS, nil)
+	// A, _ := dc.Medium(dc.AMQP1, nil)
 
 	fmt.Println("Close - Defer call is placed")
-	// defer N.Close()
-	defer A.Close()
+	defer N.Close()
+	// defer A.Close()
 
 	fmt.Println("Dispatch is called")
 	for i := 1; i <= 10; i++ {
-		// N.Distribute("Server.iLO.Low", P)
+		N.Dispatch("Server.iLO.Low", P)
 		// fmt.Printf("%v", N.Get("mqconsumer", jd))
-		fmt.Println(A.Dispatch("ServerIO", jd))
-		fmt.Println(A.Dispatch("ServerIO", P))
+		// fmt.Println(A.Dispatch("ServerIO", jd))
+		// fmt.Println(A.Dispatch("ServerIO", P))
 	}
 }
 
