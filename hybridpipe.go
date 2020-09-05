@@ -73,6 +73,7 @@ type Process = func(d interface{})
 //	fn - HandleRequest type (Function to handle messaging if user use this
 //	     connection object as Consumer of messages from specific Pipe / Data stream.
 func DeployRouter(bt int, fn RespondFn) (HybridPipe, error) {
+
 	var p HybridPipe = reflect.New(RoutersMap[bt]).Interface().(HybridPipe)
 	if e := p.Connect(); e != nil {
 		return nil, e

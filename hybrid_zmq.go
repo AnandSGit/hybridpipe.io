@@ -28,30 +28,11 @@ func (zp *ZMQPacket) Dispatch(pipe string, d interface{}) error {
 	return nil
 }
 
-// Distribute defines the Produce or Publisher Function for NATS Medium. User
-// just needs to pass to which Pipe message needs to be passed and Message itself
-// This is non blocking call. So once Publish done, client would get the control
-// back for their next procedure. By default, we have defined the Consume Timeout
-// as "2 Seconds". If Consumer is not able to handle the incoming message with-in,
-// this timeout period, That message is lost. NATS works in "Shoot & Forget" model
-func (zp *ZMQPacket) Distribute(pipe string, d interface{}) error {
-	return nil
-}
-
 // Accept defines the Subscription / Consume procedure. Again same connection would
 // be used for handling all the communication with NATS as it is goroutine safe.
 // Same as Request Response Model, in case of Consuming messages, we have used
 // Queue Subscription to enable load balancing in NATS Server end.
 func (zp *ZMQPacket) Accept(pipe string, fn Process) error {
-	return nil
-}
-
-// Get would initiate a Request a Sync request from remote process. Here Pipe name
-// should be the remote process name. If the Sync Request Response Facility enabled
-// for HybridPipe Connection object, That would create a Channel with that Client
-// process name and any other process can communicate with this client process via
-// that newly created Pipe (Topic / Subject). This procedure call is a blocking call
-func (zp *ZMQPacket) Get(pipe string, d interface{}) interface{} {
 	return nil
 }
 

@@ -93,11 +93,6 @@ func (ap *AMQPPacket) read(r *amqp.Receiver, p string, fn Process) error {
 	}
 }
 
-// Get - Not Supported in AMQP.
-func (ap *AMQPPacket) Get(pipe string, d interface{}) interface{} {
-	return nil
-}
-
 // Remove will close a specific session from the local stored map
 func (ap *AMQPPacket) Remove(pipe string) error {
 	return nil

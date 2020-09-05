@@ -12,12 +12,6 @@ func (mp *MQTTPacket) Connect() error {
 	return nil
 }
 
-// initResponder defines the implicit local function that would respond for any incoming "Get" requests.
-// No Implementation required.
-func (mp *MQTTPacket) initResponder() error {
-	return nil
-}
-
 // Dispatch will be implemented only for AMQP 1.0 medium
 func (mp *MQTTPacket) Dispatch(pipe string, d interface{}) error {
 	return nil
@@ -25,11 +19,6 @@ func (mp *MQTTPacket) Dispatch(pipe string, d interface{}) error {
 
 // Accept defines the Subscription / Consume procedure.
 func (mp *MQTTPacket) Accept(pipe string, fn Process) error {
-	return nil
-}
-
-// Get would initiate a Request a Sync request from remote process.
-func (mp *MQTTPacket) Get(pipe string, d interface{}) interface{} {
 	return nil
 }
 
