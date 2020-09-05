@@ -30,6 +30,7 @@ func produce(w *sync.WaitGroup) {
 	dc.Enable(Person{})
 
 	// Nx - Linked with P
+        /**
 	Nx := Person{
 		Name:    "Wasim",
 		Age:     39,
@@ -45,11 +46,11 @@ func produce(w *sync.WaitGroup) {
 		CAge:    []int{45, 37, 39},
 		Next:    &Nx,
 	}
-
-	N, _ := dc.DeployRouter(dc.NATS, nil)
-	defer N.Close()
-	for i := 1; i <= 10; i++ {
-		N.Dispatch("ServerIO", P)
+        **/
+	// N, _ := dc.DeployRouter(dc.NATS, nil)
+	A, _ := dc.DeployRouter(dc.AMQP1, nil)
+	for i := 1; i <= 500; i++ {
+		A.Dispatch("/ServerOI", jd)
 	}
 }
 
