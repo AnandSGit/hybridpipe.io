@@ -22,29 +22,5 @@ NATS Consumer Client :
 	N, _ := dc.Medium(dc.NATS, RespondHandler)      // Respond will be handled in this API
 	N.Accept("Apps.iLO.Low", NatsHandler)          // Incoming Message would be handled in "NatsHandler" API in
 	client side
-
-KAFKA Producer Client :
-	dc.Enable(Person{})
-	K, _ := dc.Medium(dc.KAFKA, nil)                // This obj won't handle Sync call
-	defer K.Close()
-	K.Distribute("Apps.iLO.Med", P)                // P object of Person{}
-
-KAFKA Consumer Client :
-	dc.Enable(Person{})
-	K, _ := dc.Medium(dc.KAFKA, nil)                // KAFKA doesn't support Sync calls
-	N.Accept("Apps.iLO.Med", KAfkaHandler)         // Incoming Message would be handled in "KafkaHandler" API in
-	client side
-
-RABBITMQ Producer Client :
-	R, _ := dc.Medium(dc.RABBITMQ, nil)
-	defer R.Close()
-	R.Distribute("Apps.iLO.Med", jd)               // Sending JSON Content
-
-RABBITMQ Consumer Client :
-	R, _ := dc.Medium(dc.RABBITMQ, nil)
-	defer R.Close()
-	R.Accept("Apps.iLO.Med", RabbitHandler)        // Incoming Message would be handled in "RabbitHandler" API in
-	client side
-
 */
 package hybridpipe

@@ -75,16 +75,11 @@ func (kp *KafkaPacket) Connect() error {
 	return nil
 }
 
-// Dispatch will be implemented only for AMQP 1.0 medium
-func (kp *KafkaPacket) Dispatch(pipe string, d interface{}) error {
-	return nil
-}
-
-// Distribute defines the Producer / Publisher role and functionality. Writer would be
+// Dispatch defines the Producer / Publisher role and functionality. Writer would be
 // created for each Pipe comes-in for communication. If Writer already exists, that connection
 // would be used for this call. Before publishing the message in the specified Pipe, it will be
 // converted into Byte stream using "Encode" API. Encryption is enabled for the message via TLS.
-func (kp *KafkaPacket) Distribute(pipe string, d interface{}) error {
+func (kp *KafkaPacket) Dispatch(pipe string, d interface{}) error {
 	// Check for existing Writers. If not existing for this specific Pipe,
 	// then we would create this Writer object for sending the message.
 	if _, a := kp.Writers[pipe]; a == false {
@@ -155,12 +150,6 @@ func (kp *KafkaPacket) Read(p string, fn Process) error {
 		}
 		fn(d)
 	}
-}
-
-// Get - Not supported for now in Kafka from Message Bus side due to limitations
-// on the quality of the go library implementation. Will be taken-up in future.
-func (kp *KafkaPacket) Get(pipe string, d interface{}) interface{} {
-	return nil
 }
 
 // Remove will just remove the existing subscription.
