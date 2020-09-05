@@ -1,5 +1,4 @@
 FROM golang:1.12.5-alpine3.9 AS FirstStage
-MAINTAINER Anand Sundararaj <Anand.S.Main@gmail.com>
 
 WORKDIR $GOPATH/src/github.com/nats-io
 RUN apk add --update git

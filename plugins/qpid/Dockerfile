@@ -1,10 +1,10 @@
-################################################################################################ 
-# BUILD : docker build --tag dockqpid . (End "." would take the Dockerfile from the local folder, this file)
+################################################################################
+# BUILD : docker build --tag dockqpid . (End "." would take the Dockerfile from
+#         the local folder, this file)
 # RUN   : docker run -ti dockqpid
-################################################################################################
+################################################################################
 
 FROM ubuntu:latest
-MAINTAINER "dev@qpid.apache.org"
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
@@ -27,17 +27,17 @@ RUN apt-get update && \
 	git && \
 	apt-get -y clean
 
-RUN git clone https://gitbox.apache.org/repos/asf/qpid-dispatch.git && \
-	cd /qpid-dispatch && \
-	git submodule add https://gitbox.apache.org/repos/asf/qpid-proton.git && \
-	git submodule update --init
+RUN git clone https://gitbox.apache.org/repos/asf/qpid-dispatch.git \
+	&& cd /qpid-dispatch \
+	&& git submodule add https://gitbox.apache.org/repos/asf/qpid-proton.git \
+	&& git submodule update --init
 
 WORKDIR /qpid-dispatch
 
-RUN mkdir qpid-proton/build && \
-	cd qpid-proton/build && \
-	cmake .. -DSYSINSTALL_BINDINGS=ON -DCMAKE_INSTALL_PREFIX=/usr -DSYSINSTALL_PYTHON=ON && \
-	make install
+RUN mkdir qpid-proton/build \
+	&& cd qpid-proton/build \
+	&& cmake .. -DSYSINSTALL_BINDINGS=ON -DCMAKE_INSTALL_PREFIX=/usr \
+        -DSYSINSTALL_PYTHON=ON && make install
 
 WORKDIR /qpid-dispatch
 
@@ -46,9 +46,11 @@ RUN mkdir build && cd build && \
 	cmake --build . --target install
 
 ENV PYTHONPATH=/usr/lib/python2.7/site-packages
-####<Not running for now>#### RUN cd /qpid-dispatch/build && ctest -VV
+
+# <Not running for now>
+# RUN cd /qpid-dispatch/build && ctest -VV
+
 WORKDIR /qpid-dispatch
 
 # Start the dispatch router
 ENTRYPOINT ["qdrouterd"]
-#### CMD ["/bin/bash"]

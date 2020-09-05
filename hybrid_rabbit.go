@@ -30,14 +30,9 @@ func (rp *RabbitPacket) Connect() error {
 	return nil
 }
 
-// Dispatch will be implemented only for AMQP 1.0 medium
-func (rp *RabbitPacket) Dispatch(pipe string, d interface{}) error {
-	return nil
-}
-
-// Distribute defines the Produce or Publisher Function for RabbitMQ Medium. User just
+// Dispatch defines the Produce or Publisher Function for RabbitMQ Medium. User just
 // needs to pass to which Pipe message needs to be passed and Message itself.
-func (rp *RabbitPacket) Distribute(pipe string, d interface{}) error {
+func (rp *RabbitPacket) Dispatch(pipe string, d interface{}) error {
 	var q ampq.Queue
 	var e error
 
@@ -98,11 +93,6 @@ func (rp *RabbitPacket) Accept(pipe string, fn Process) error {
 		}
 	}()
 	<-inFinity
-	return nil
-}
-
-// Get would initiate a Request from this object. Not supported in RabbitMQ now
-func (rp *RabbitPacket) Get(pipe string, d interface{}) interface{} {
 	return nil
 }
 
