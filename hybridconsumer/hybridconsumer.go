@@ -19,16 +19,19 @@ type Person struct {
 	Next    *Person
 }
 
+var i int = 0
+
 // AMQPHandler Procedure
 func AMQPHandler(am interface{}) {
-	fmt.Println("Message Sent via AMQP: ", am)
+	fmt.Println(i, " - Message Sent via AMQP: ", am)
+	i++
 }
 
 func consume(w *sync.WaitGroup) {
 	defer w.Done()
 	dc.Enable(Person{})
-	N, _ := dc.DeployRouter(dc.NATS, nil)
-	fmt.Println(N.Accept("ServerIO", AMQPHandler))
+	A, _ := dc.DeployRouter(dc.AMQP1, nil)
+	A.Accept("/ServerOI", AMQPHandler)
 }
 
 func main() {

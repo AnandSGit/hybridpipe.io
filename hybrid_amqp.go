@@ -8,15 +8,13 @@ import (
 	"github.com/Azure/go-amqp"
 )
 
-// AMQPPacket defines the ZeroMQ Message Packet Object. Apart from Base Packet, it
-// will contain Connection Object and identifiers related to ZeroMQ.
-// 	HandleConn - ZeroMQ Connection Object
-// 	PipeHandle - Create the map between Pipe name and NATS Subscription
+// AMQPPacket defines the Qpid Message Packet
+// 	HandleConn - AMQP Connection Object
 type AMQPPacket struct {
 	HandleConn *amqp.Client
 }
 
-// Connect - Similar to KafkaConnect in AMQP context.
+// Connect - Defines the procedure to connect to AMQP Qpid server.
 func (ap *AMQPPacket) Connect() error {
 	// In case where HandleConn is already created, we don't recreate the connection again.
 	if ap.HandleConn == nil {
@@ -30,7 +28,7 @@ func (ap *AMQPPacket) Connect() error {
 	return nil
 }
 
-// Dispatch would send a user defined message to another microservice or service or application.
+// Dispatch would send a user defined message using Qpid server
 func (ap *AMQPPacket) Dispatch(pipe string, d interface{}) error {
 	var e error
 	session, e := ap.HandleConn.NewSession()
@@ -67,29 +65,34 @@ func (ap *AMQPPacket) Accept(pipe string, fn Process) error {
 		return er
 	}
 	receiver, e := session.NewReceiver(
-		amqp.LinkTargetAddress(pipe),
-		amqp.LinkCredit(1),
+		amqp.LinkSourceAddress(pipe),
+		amqp.LinkCredit(10),
 	)
 	if e != nil {
 		er := fmt.Errorf("Creating Receiver Link - FAILED : %#v", e)
 		return er
 	}
-	ap.read(receiver, pipe, fn)
+	go ap.read(receiver, fn)
 	return nil
 }
 
-func (ap *AMQPPacket) read(r *amqp.Receiver, p string, fn Process) error {
-	c := context.Background()
-	defer r.Close(c)
-	fmt.Println("Just before FOR loop")
+// Get the message using receiver call.
+func (ap *AMQPPacket) read(r *amqp.Receiver, fn Process) error {
+	ctx := context.Background()
+	var d interface{}
+
+	defer r.Close(ctx)
 	for {
-		m, e := r.Receive(c)
+		m, e := r.Receive(ctx)
 		if e != nil {
 			er := fmt.Errorf("Message Receive Error - %#v", e)
 			return er
 		}
-		m.Accept(c)
-		fn(m.GetData())
+		m.Accept(ctx)
+		if e = Decode(m.GetData(), &d); e != nil {
+			return e
+		}
+		fn(d)
 	}
 }
 
