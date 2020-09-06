@@ -45,8 +45,8 @@ func produce(w *sync.WaitGroup) {
 		CAge:    []int{45, 37, 39},
 		Next:    &Nx,
 	}
-	N, _ := dc.DeployRouter(dc.NATS, nil)
-	A, _ := dc.DeployRouter(dc.AMQP1, nil)
+	N, _ := dc.DeployRouter(dc.NATS)
+	A, _ := dc.DeployRouter(dc.AMQP1)
 	for i := 1; i <= 500; i++ {
 		A.Dispatch("ServerOI", P)
 		N.Dispatch("ServerIO", jd)

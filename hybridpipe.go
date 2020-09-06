@@ -53,13 +53,6 @@ type HybridPipe interface {
 	Close()
 }
 
-// RespondFn allows the users to response for the requests it receives from
-// remote Applications / systems / micro services.
-//	d - Takes the input in any format.
-// This API is used for getting some specific data from remote microservice with-in the
-// application system. This is applicable only for NATS router for now.
-type RespondFn = func(d interface{}) interface{}
-
 // Process defines the callback function that should be called when client
 // receives the message
 //	d - Take the input in any data format.
@@ -70,9 +63,7 @@ type Process = func(d interface{})
 // parameter of Respond Function definition. This function will be applicable only
 // for NATS (Only NATS supports pseudo synchronous communication)
 //	br - BrokerType
-//	fn - HandleRequest type (Function to handle messaging if user use this
-//	     connection object as Consumer of messages from specific Pipe / Data stream.
-func DeployRouter(bt int, fn RespondFn) (HybridPipe, error) {
+func DeployRouter(bt int) (HybridPipe, error) {
 
 	p := reflect.New(RoutersMap[bt]).Interface().(HybridPipe)
 	if e := p.Connect(); e != nil {
