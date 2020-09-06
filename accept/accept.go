@@ -19,19 +19,27 @@ type Person struct {
 	Next    *Person
 }
 
-var i int = 0
+var i, ni int
 
-// AMQPHandler Procedure
+// AMQPHandler function
 func AMQPHandler(am interface{}) {
 	fmt.Println(i, " - Message Sent via AMQP: ", am)
 	i++
+}
+
+// NATSHandler function
+func NATSHandler(nm interface{}) {
+	fmt.Println(ni, "Message sent via NATS: ", nm)
+	ni++
 }
 
 func consume(w *sync.WaitGroup) {
 	defer w.Done()
 	dc.Enable(Person{})
 	A, _ := dc.DeployRouter(dc.AMQP1, nil)
-	A.Accept("/ServerOI", AMQPHandler)
+	N, _ := dc.DeployRouter(dc.NATS, nil)
+	A.Accept("ServerOI", AMQPHandler)
+	N.Accept("ServerIO", NATSHandler)
 }
 
 func main() {
