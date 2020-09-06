@@ -1,30 +1,27 @@
 package hybridpipe
 
+import (
+	"github.com/pebbe/zmq4"
+)
+
 // ZMQPacket defines the ZeroMQ Message Packet Object. Apart from Base Packet, it
 // will contain Connection Object and identifiers related to ZeroMQ.
-// 	HandleConn - ZeroMQ Connection Object
-// 	PipeHandle - Create the map between Pipe name and NATS Subscription
+// 	rMQ - ZeroMQ - Data Sending Channel Stream
+// 	dMQ - Data Receiving Channel Stream
 type ZMQPacket struct {
+	dConn *zmq4.Socket
+	aConn *zmq4.Socket
 }
 
 // Connect - Similar to KafkaConnect in NATS context.
 func (zp *ZMQPacket) Connect() error {
-	return nil
-}
 
-// initResponder defines the implicit local function that would respond for any incoming "Get" requests.
-// The Pipe name defined for the subscription would be local process name. Because we use Queue Subscription,
-// Load balancing would be handled from NATS end. So even if all the instances of this application running
-// in parallel in different / same nodes, only one of the instance would really receive this Get calls.
-// This function would give complete control to the user on how they wants to handle their request and
-// response data. The Request and Response data types and formats should be decided by Interface definition
-// between those 2 systems, those uses HybridPipe for communication.
-func (zp *ZMQPacket) initResponder() error {
 	return nil
 }
 
 // Dispatch would be implemented only for AMQP 1.0 medium
 func (zp *ZMQPacket) Dispatch(pipe string, d interface{}) error {
+
 	return nil
 }
 
@@ -33,6 +30,7 @@ func (zp *ZMQPacket) Dispatch(pipe string, d interface{}) error {
 // Same as Request Response Model, in case of Consuming messages, we have used
 // Queue Subscription to enable load balancing in NATS Server end.
 func (zp *ZMQPacket) Accept(pipe string, fn Process) error {
+
 	return nil
 }
 
