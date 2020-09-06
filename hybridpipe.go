@@ -63,9 +63,7 @@ type Process = func(d interface{})
 // parameter of Respond Function definition. This function will be applicable only
 // for NATS (Only NATS supports pseudo synchronous communication)
 //	br - BrokerType
-//	fn - HandleRequest type (Function to handle messaging if user use this
-//	     connection object as Consumer of messages from specific Pipe / Data stream.
-func DeployRouter(bt int, fn Process) (HybridPipe, error) {
+func DeployRouter(bt int) (HybridPipe, error) {
 
 	p := reflect.New(RoutersMap[bt]).Interface().(HybridPipe)
 	if e := p.Connect(); e != nil {
