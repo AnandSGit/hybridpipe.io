@@ -36,8 +36,8 @@ func NATSHandler(nm interface{}) {
 func consume(w *sync.WaitGroup) {
 	defer w.Done()
 	dc.Enable(Person{})
-	A, _ := dc.DeployRouter(dc.AMQP1, nil)
-	N, _ := dc.DeployRouter(dc.NATS, nil)
+	A, _ := dc.DeployRouter(dc.AMQP1)
+	N, _ := dc.DeployRouter(dc.NATS)
 	A.Accept("ServerOI", AMQPHandler)
 	N.Accept("ServerIO", NATSHandler)
 }
