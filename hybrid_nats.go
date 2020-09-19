@@ -31,7 +31,6 @@ func (np *NatsPacket) Connect() error {
 		er := fmt.Errorf("NATS Connect Error: %#v, %s", e, HPipeConfig.NServer)
 		return er
 	}
-
 	np.HandleConn = nc
 	if np.PipeHandle == nil {
 		np.PipeHandle = make(map[string]*nats.Subscription)

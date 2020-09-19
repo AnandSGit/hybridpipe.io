@@ -1,14 +1,21 @@
 package hybridpipe
 
+import (
+	Mqtt "github.com/eclipse/paho.mqtt.golang"
+)
+
 // MQTTPacket defines the ZeroMQ Message Packet Object. Apart from Base Packet, it
 // will contain Connection Object and identifiers related to ZeroMQ.
 // 	HandleConn - ZeroMQ Connection Object
 // 	PipeHandle - Create the map between Pipe name and NATS Subscription
 type MQTTPacket struct {
+	Broker *Mqtt.ClientOptions
+	Client *Mqtt.Client
 }
 
 // Connect - Similar to KafkaConnect in NATS context.
 func (mp *MQTTPacket) Connect() error {
+
 	return nil
 }
 

@@ -1,7 +1,5 @@
 package hybridpipe
 
-// NOTE for Maintenance: Please exceed the line limit of column 140
-
 import (
 	"bytes"
 	"encoding/gob"
@@ -9,16 +7,18 @@ import (
 	"reflect"
 )
 
-// Broker ID - User can use this ID to select their communication medium
-// User should use this ID when calling API - "Medium"
+// BrokerID defines id of communication medium
 // 	NATS     - https://nats.io/
 //	KAFKA    - https://kafka.apache.org/
 //	RabbitMQ - https://www.rabbitmq.com/
 //	ZeroMQ   - https://zeromq.org/
 //	AMQP 1.0 - https://www.amqp.org
 //	MQTT     - http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
+type BrokerID int
+
+// NATS, KAFKA, RABBITMQ, ZEROMQ, AMQP1, MQTT
 const (
-	NATS = iota
+	NATS BrokerID = iota
 	KAFKA
 	RABBITMQ
 	ZEROMQ
@@ -27,7 +27,7 @@ const (
 )
 
 // RoutersMap defines Broker or Router Registry for Pipe creation
-var RoutersMap = make(map[int]reflect.Type)
+var RoutersMap = make(map[BrokerID]reflect.Type)
 
 // Initialize the Register Map with all supported interfaces
 func init() {
@@ -53,17 +53,13 @@ type HybridPipe interface {
 	Close()
 }
 
-// Process defines the callback function that should be called when client
-// receives the message
+// Process defines the callback function that should be called when client receives the message
 //	d - Take the input in any data format.
-// Note: This is not applicable for TCP Mode.
 type Process = func(d interface{})
 
-// DeployRouter defines the Broker / Router to be used for the communication with optional
-// parameter of Respond Function definition. This function will be applicable only
-// for NATS (Only NATS supports pseudo synchronous communication)
-//	br - BrokerType
-func DeployRouter(bt int) (HybridPipe, error) {
+// DeployRouter handles the connection object creation with router middleware
+//	br - BrokerType, possible values defined above.
+func DeployRouter(bt BrokerID) (HybridPipe, error) {
 
 	p := reflect.New(RoutersMap[bt]).Interface().(HybridPipe)
 	if e := p.Connect(); e != nil {
@@ -73,7 +69,6 @@ func DeployRouter(bt int) (HybridPipe, error) {
 }
 
 // Encode would user defined data (To be transmitted) into Byte stream.
-// Please look into Enable API
 func Encode(d interface{}) ([]byte, error) {
 
 	var b bytes.Buffer
