@@ -22,16 +22,12 @@ func (mp *MQTTPacket) Accept(pipe string, fn Process) error {
 	return nil
 }
 
-// Remove will close a specific Subscription not the connection with NATS. This
-// API should be called when user wants to just un-subscribe for some specific
-// Pipes (Topic or Subject).
+// Remove will close a specific Subscription.
 func (mp *MQTTPacket) Remove(pipe string) error {
 	return nil
 }
 
-// Close will close NATS connection. After this call, this Object will
-// become un-usable. Unexpected behavior will occur if user tries to use
-// the mpacket object post "Disconnect" call.
+// Close will close NATS connection.
 func (mp *MQTTPacket) Close() {
 
 }
