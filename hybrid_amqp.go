@@ -9,14 +9,13 @@ import (
 )
 
 // AMQPPacket defines the Qpid Message Packet
-// 	HandleConn - AMQP Connection Object
 type AMQPPacket struct {
 	HandleConn *amqp.Client
 }
 
 // Connect - Defines the procedure to connect to AMQP Qpid server.
 func (ap *AMQPPacket) Connect() error {
-	// In case where HandleConn is already created, we don't recreate the connection again.
+
 	if ap.HandleConn == nil {
 		conn, e := amqp.Dial(HPipeConfig.AMQPServer)
 		if e != nil {
@@ -41,7 +40,7 @@ func (ap *AMQPPacket) Dispatch(pipe string, d interface{}) error {
 		er := fmt.Errorf("Creating Sender Link - FAILED : %#v", e)
 		return er
 	}
-	// Message Encoding done
+
 	b, e := Encode(d)
 	if e != nil {
 		log.Printf("%v", e)
@@ -56,8 +55,7 @@ func (ap *AMQPPacket) Dispatch(pipe string, d interface{}) error {
 	return nil
 }
 
-// Accept defines the Subscription / Consume procedure. The Message processing
-// will be done in separate Go routine.
+// Accept defines the Subscription / Consume procedure.
 func (ap *AMQPPacket) Accept(pipe string, fn Process) error {
 	session, e := ap.HandleConn.NewSession()
 	if e != nil {
@@ -101,8 +99,7 @@ func (ap *AMQPPacket) Remove(pipe string) error {
 	return nil
 }
 
-// Close will close AMQP connection. Repeated calls would result in
-// unexpected error.
+// Close will close AMQP connection.
 func (ap *AMQPPacket) Close() {
 	ap.HandleConn.Close()
 }
