@@ -14,11 +14,6 @@ import (
 )
 
 // KafkaPacket defines the data for handling KAFKA connections for Broker function.
-// 	Packet - defines the backbone broker and response handling function. (Nil)
-//	Readers - map between Pipe name and Kafka Reader objects
-// 	Writers - map between Pipe name and Kafka writer objects
-//	DialerConn - Kafka Connection Object
-//	Server - KAFKA Server Target name
 type KafkaPacket struct {
 	Readers    map[string]*kafka.Reader
 	Writers    map[string]*kafka.Writer
@@ -26,8 +21,7 @@ type KafkaPacket struct {
 	Server     string
 }
 
-// TLS creates the TLS configuration objects to be used by KAFKA (For both
-// Auth and Encryption)
+// TLS creates the TLS configuration objects to be used by KAFKA
 func TLS(cCert, cKey, caCert string) (*tls.Config, error) {
 
 	tlsConfig := tls.Config{}
@@ -53,7 +47,6 @@ func TLS(cCert, cKey, caCert string) (*tls.Config, error) {
 }
 
 // Connect creates the Kafka connection & both Reader and Writer stream objects
-// based on the pipe name
 func (kp *KafkaPacket) Connect() error {
 	kp.Server = HPipeConfig.KServer + ":" + strconv.Itoa(HPipeConfig.KLport)
 	tls, e := TLS(HPipeConfig.KAFKACertFile, HPipeConfig.KAFKAKeyFile, HPipeConfig.KAFKACAFile)
@@ -75,15 +68,10 @@ func (kp *KafkaPacket) Connect() error {
 	return nil
 }
 
-// Dispatch defines the Producer / Publisher role and functionality. Writer would be
-// created for each Pipe comes-in for communication. If Writer already exists, that connection
-// would be used for this call. Before publishing the message in the specified Pipe, it will be
-// converted into Byte stream using "Encode" API. Encryption is enabled for the message via TLS.
+// Dispatch defines the Producer / Publisher role and functionality.
 func (kp *KafkaPacket) Dispatch(pipe string, d interface{}) error {
-	// Check for existing Writers. If not existing for this specific Pipe,
-	// then we would create this Writer object for sending the message.
-	if _, a := kp.Writers[pipe]; a == false {
 
+	if _, a := kp.Writers[pipe]; a == false {
 		kp.Writers[pipe] = kafka.NewWriter(kafka.WriterConfig{
 			Brokers:       []string{kp.Server},
 			Topic:         pipe,
@@ -110,11 +98,9 @@ func (kp *KafkaPacket) Dispatch(pipe string, d interface{}) error {
 	return nil
 }
 
-// Accept function defines the Consumer or Subscriber functionality for KAFKA. If Reader object
-// for the specified Pipe is not available, New Reader Object would be created. From this
-// function Goroutine "Read" will be invoked to handle the incoming messages.
+// Accept function defines the Consumer or Subscriber functionality for KAFKA.
 func (kp *KafkaPacket) Accept(pipe string, fn Process) error {
-	// If for the Reader Object for pipe and create one if required.
+
 	if _, a := kp.Readers[pipe]; a == false {
 		kp.Readers[pipe] = kafka.NewReader(kafka.ReaderConfig{
 			Brokers:        []string{kp.Server},
@@ -132,13 +118,9 @@ func (kp *KafkaPacket) Accept(pipe string, fn Process) error {
 
 // Read would access the KAFKA messages in a infinite loop.
 func (kp *KafkaPacket) Read(p string, fn Process) error {
-	// This interface should be defined outside the inner level to make sure
-	// we are making the ToData API to work.
+
 	var d interface{}
 	c := context.Background()
-
-	// Infinite loop to make sure we are constantly reading the messages
-	// from KAFKA.
 	for {
 		m, e := kp.Readers[p].ReadMessage(c)
 		if e != nil {
@@ -164,16 +146,13 @@ func (kp *KafkaPacket) Remove(pipe string) error {
 	return nil
 }
 
-// Close will disconnect KAFKA Connection. This API should be called when client
-// is completely closing Kafka connection, we would called "Remove" for just removing subscription.
+// Close will disconnect KAFKA Connection.
 func (kp *KafkaPacket) Close() {
-	// Closing all opened Readers Connections
+
 	for rp, rc := range kp.Readers {
 		rc.Close()
 		delete(kp.Readers, rp)
 	}
-
-	// Closing all opened Writers Connections
 	for wp, wc := range kp.Writers {
 		wc.Close()
 		delete(kp.Writers, wp)
