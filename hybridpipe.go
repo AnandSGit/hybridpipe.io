@@ -46,10 +46,7 @@ type HybridPipe interface {
 	Close()
 }
 
-// Process defines the callback function that should be called when client
-// receives the message
-//	d - Take the input in any data format.
-// Note: This is not applicable for TCP Mode.
+// Process defines the callback function that should be called when client receives the message
 type Process = func(d interface{})
 
 // DeployRouter defines the Broker / Router to be used for the communication
