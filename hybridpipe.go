@@ -1,7 +1,5 @@
 package hybridpipe
 
-// NOTE for Maintenance: Please exceed the line limit of column 140
-
 import (
 	"bytes"
 	"encoding/gob"
@@ -40,11 +38,6 @@ func init() {
 }
 
 // HybridPipe defines the interface for HybridPipe Module
-//	Connect - Would connect with right Router backend
-//	Dispatch - publishes / broadcasts messages to defined Pipe
-//	Accept - consumes the received message
-//	Get - Pesudo synchronous call to get data from remote service (Works as RPC)
-//	Close - closes the specified connection with Broker / Router
 type HybridPipe interface {
 	Connect() error
 	Dispatch(pipe string, data interface{}) error
@@ -59,10 +52,7 @@ type HybridPipe interface {
 // Note: This is not applicable for TCP Mode.
 type Process = func(d interface{})
 
-// DeployRouter defines the Broker / Router to be used for the communication with optional
-// parameter of Respond Function definition. This function will be applicable only
-// for NATS (Only NATS supports pseudo synchronous communication)
-//	br - BrokerType
+// DeployRouter defines the Broker / Router to be used for the communication
 func DeployRouter(bt int) (HybridPipe, error) {
 
 	p := reflect.New(RoutersMap[bt]).Interface().(HybridPipe)
@@ -73,7 +63,6 @@ func DeployRouter(bt int) (HybridPipe, error) {
 }
 
 // Encode would user defined data (To be transmitted) into Byte stream.
-// Please look into Enable API
 func Encode(d interface{}) ([]byte, error) {
 
 	var b bytes.Buffer
@@ -99,8 +88,6 @@ func Decode(d []byte, a interface{}) error {
 }
 
 // Enable would enable a specific user-defined data to be passed via HybridPipe.
-// Before user calls "Encode" and "Decode", they need to enable the user-defined
-// data to be learned by HybridPipe using "gob" package module
 func Enable(DT interface{}) {
 	gob.Register(DT)
 }
