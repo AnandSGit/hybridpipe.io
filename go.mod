@@ -1,4 +1,4 @@
-module hybridpipe.io
+module github.com/AnandSGit/hybridpipe.io
 
 go 1.14
 
