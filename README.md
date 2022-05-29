@@ -1,6 +1,4 @@
 ```Date: March 14th 2020```
-# HybridPipe
-
 <img width="534" alt="Screen Shot 2020-08-16 at 15 56 59" src="https://user-images.githubusercontent.com/5903620/170846556-73feced0-73fc-4fb2-bb88-e04101954968.png">
 
 ### Tools / Platforms used
