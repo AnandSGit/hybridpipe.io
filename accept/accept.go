@@ -30,6 +30,9 @@ var (
 	mqttCount  int
 	qpidCount  int
 	rmqCount   int
+	nsqCount   int
+	tcpCount   int
+	redisCount int
 	mutex      sync.Mutex
 )
 
@@ -87,6 +90,33 @@ func RabbitMQHandler(data interface{}) {
 	fmt.Printf("[RabbitMQ] Message #%d: %v\n", count, data)
 }
 
+// NSQHandler processes messages received via NSQ
+func NSQHandler(data interface{}) {
+	mutex.Lock()
+	nsqCount++
+	count := nsqCount
+	mutex.Unlock()
+	fmt.Printf("[NSQ] Message #%d: %v\n", count, data)
+}
+
+// TCPHandler processes messages received via TCP
+func TCPHandler(data interface{}) {
+	mutex.Lock()
+	tcpCount++
+	count := tcpCount
+	mutex.Unlock()
+	fmt.Printf("[TCP] Message #%d: %v\n", count, data)
+}
+
+// RedisHandler processes messages received via Redis
+func RedisHandler(data interface{}) {
+	mutex.Lock()
+	redisCount++
+	count := redisCount
+	mutex.Unlock()
+	fmt.Printf("[Redis] Message #%d: %v\n", count, data)
+}
+
 // setupConsumer sets up message consumers for all supported protocols
 func setupConsumer(wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -108,6 +138,9 @@ func setupConsumer(wg *sync.WaitGroup) {
 		{"MQTT", dc.MQTT, MQTTHandler, "hybridpipe.test.mqtt"},
 		{"Qpid", dc.QPID, QpidHandler, "hybridpipe.test.qpid"},
 		{"RabbitMQ", dc.RABBITMQ, RabbitMQHandler, "hybridpipe.test.rabbitmq"},
+		{"NSQ", dc.NSQ, NSQHandler, "hybridpipe.test.nsq"},
+		{"TCP", dc.TCP, TCPHandler, "hybridpipe.test.tcp"},
+		{"Redis", dc.REDIS, RedisHandler, "hybridpipe.test.redis"},
 	}
 
 	// Connect to each protocol and subscribe to topics
@@ -155,6 +188,9 @@ func setupConsumer(wg *sync.WaitGroup) {
 	log.Printf("MQTT: %d\n", mqttCount)
 	log.Printf("Qpid: %d\n", qpidCount)
 	log.Printf("RabbitMQ: %d\n", rmqCount)
+	log.Printf("NSQ: %d\n", nsqCount)
+	log.Printf("TCP: %d\n", tcpCount)
+	log.Printf("Redis: %d\n", redisCount)
 }
 
 func main() {
@@ -172,8 +208,8 @@ func main() {
 	go func() {
 		for range ticker.C {
 			mutex.Lock()
-			log.Printf("Current message counts - AMQP: %d, NATS: %d, Kafka: %d, MQTT: %d, Qpid: %d, RabbitMQ: %d\n",
-				amqpCount, natsCount, kafkaCount, mqttCount, qpidCount, rmqCount)
+			log.Printf("Current message counts - AMQP: %d, NATS: %d, Kafka: %d, MQTT: %d, Qpid: %d, RabbitMQ: %d, NSQ: %d, TCP: %d, Redis: %d\n",
+				amqpCount, natsCount, kafkaCount, mqttCount, qpidCount, rmqCount, nsqCount, tcpCount, redisCount)
 			mutex.Unlock()
 		}
 	}()

@@ -23,12 +23,24 @@
 - [Configuration](#-configuration)
 - [Usage](#-usage)
   - [Basic Concepts](#basic-concepts)
+  - [Protocol Selection Guide](#protocol-selection-guide)
   - [Code Examples](#code-examples)
+    - [NSQ Example](#nsq-example)
+    - [TCP Example](#tcp-example)
+    - [Redis Example](#redis-example)
 - [Security](#-security)
 - [API Reference](#-api-reference)
 - [Architecture](#-architecture)
+- [Use Cases](#-use-cases)
+  - [Microservices Communication](#microservices-communication)
+  - [IoT Data Collection](#iot-data-collection)
+  - [Event-Driven Architecture](#event-driven-architecture)
+  - [Migration Between Messaging Systems](#migration-between-messaging-systems)
 - [Implementation Status](#-implementation-status)
 - [Recent Improvements](#-recent-improvements)
+- [Future Roadmap](#-future-roadmap)
+  - [Short-Term Roadmap](#short-term-roadmap)
+  - [Long-Term Vision](#long-term-vision)
 - [Contributing](#-contributing)
 - [License](#-license)
 
@@ -154,6 +166,21 @@ HybridPipe uses a few key concepts:
 - **Process Function**: A callback function that processes received messages
 - **Connection Handle**: An object representing a connection to a messaging system
 
+### Protocol Selection Guide
+
+Choosing the right protocol depends on your specific requirements:
+
+| Protocol | Best For | Key Strengths | Considerations |
+|----------|----------|---------------|----------------|
+| **Kafka** | High-volume data streaming, event sourcing | Durability, scalability, replay capability | Higher resource usage, complexity |
+| **NATS** | Microservices, request-reply patterns | Ultra-fast, lightweight, simple | Less durable by default |
+| **RabbitMQ** | Complex routing, workflow processing | Flexible routing, mature ecosystem | Can be resource-intensive |
+| **MQTT** | IoT devices, constrained environments | Lightweight, low bandwidth | Limited routing capabilities |
+| **NSQ** | High-throughput distributed messaging | Simple, distributed by design | Less feature-rich than some alternatives |
+| **Redis** | Simple pub/sub, caching integration | Fast, simple setup, widely deployed | Limited delivery guarantees |
+| **TCP/IP** | Custom protocols, direct communication | Full control, no dependencies | Requires more manual implementation |
+| **AMQP/Qpid** | Enterprise integration | Standardized, interoperable | More complex setup |
+
 ### Code Examples
 
 #### Initialize and Register Custom Types
@@ -229,6 +256,94 @@ if err != nil {
 
 // Keep the application running
 select {}
+```
+
+#### NSQ Example
+
+```go
+// Connect to NSQ
+nsqConn, err := hp.DeployRouter(hp.NSQ)
+if err != nil {
+    log.Fatalf("Failed to connect to NSQ: %v", err)
+}
+defer nsqConn.Close()
+
+// Define a message handler
+handleLogEvent := func(data interface{}) {
+    if event, ok := data.(map[string]interface{}); ok {
+        log.Printf("Log event: %v, level: %v",
+            event["message"], event["level"])
+    }
+}
+
+// Subscribe to a topic
+nsqConn.Accept("system.logs", handleLogEvent)
+
+// Publish a log event
+logEvent := map[string]interface{}{
+    "timestamp": time.Now().Unix(),
+    "level":     "error",
+    "message":   "Database connection failed",
+    "source":    "api-server",
+}
+nsqConn.Dispatch("system.logs", logEvent)
+```
+
+#### TCP Example
+
+```go
+// Connect to TCP server (client mode)
+tcpConn, err := hp.DeployRouter(hp.TCP)
+if err != nil {
+    log.Fatalf("Failed to connect to TCP server: %v", err)
+}
+defer tcpConn.Close()
+
+// Define a message handler
+handleTCPMessage := func(data interface{}) {
+    log.Printf("Received TCP message: %v", data)
+}
+
+// Subscribe to a channel
+tcpConn.Accept("direct", handleTCPMessage)
+
+// Send a message
+message := map[string]interface{}{
+    "command": "status",
+    "params":  []string{"cpu", "memory"},
+}
+tcpConn.Dispatch("direct", message)
+```
+
+#### Redis Example
+
+```go
+// Connect to Redis
+redisConn, err := hp.DeployRouter(hp.REDIS)
+if err != nil {
+    log.Fatalf("Failed to connect to Redis: %v", err)
+}
+defer redisConn.Close()
+
+// Define a message handler
+handleNotification := func(data interface{}) {
+    if notif, ok := data.(map[string]interface{}); ok {
+        log.Printf("Notification: %v (priority: %v)",
+            notif["message"], notif["priority"])
+    }
+}
+
+// Subscribe to a channel
+redisConn.Accept("notifications", handleNotification)
+
+// Send a notification
+notification := map[string]interface{}{
+    "type":     "alert",
+    "priority": "high",
+    "message":  "System update required",
+    "timestamp": time.Now().Format(time.RFC3339),
+}
+redisConn.Dispatch("notifications", notification)
 ```
 
 #### Using Multiple Messaging Systems Simultaneously
@@ -357,6 +472,70 @@ HybridPipe uses a pluggable architecture with the following components:
 4. **Reliability**: Ensure robust error handling and resource management
 5. **Simplicity**: Expose a minimal, intuitive API to users
 
+## 💻 Use Cases
+
+HybridPipe is designed to solve a variety of messaging challenges in distributed systems:
+
+### Microservices Communication
+
+HybridPipe provides a consistent messaging interface for microservices, allowing them to communicate using the most appropriate protocol for each interaction.
+
+```go
+// Service A: Publishes events to Kafka for durability
+kafkaRouter, _ := hp.DeployRouter(hp.KAFKA)
+kafkaRouter.Dispatch("user.created", userData)
+
+// Service B: Uses NATS for real-time notifications
+natsRouter, _ := hp.DeployRouter(hp.NATS)
+natsRouter.Dispatch("notifications", notification)
+```
+
+### IoT Data Collection
+
+HybridPipe can be used to collect data from IoT devices using MQTT and then process it using other messaging systems.
+
+```go
+// IoT Gateway: Collects data from devices via MQTT
+mqttRouter, _ := hp.DeployRouter(hp.MQTT)
+mqttRouter.Accept("sensors/+/temperature", func(data interface{}) {
+    // Process sensor data
+    // Forward to data processing pipeline
+    kafkaRouter.Dispatch("sensor-data", data)
+})
+```
+
+### Event-Driven Architecture
+
+HybridPipe enables event-driven architectures with different messaging systems for different types of events.
+
+```go
+// Critical events go to RabbitMQ for guaranteed delivery
+rmqRouter, _ := hp.DeployRouter(hp.RABBITMQ)
+rmqRouter.Dispatch("events.critical", criticalEvent)
+
+// High-volume metrics go to Kafka for scalability
+kafkaRouter, _ := hp.DeployRouter(hp.KAFKA)
+kafkaRouter.Dispatch("metrics", metricData)
+```
+
+### Migration Between Messaging Systems
+
+HybridPipe facilitates migration between different messaging systems by allowing both to run simultaneously.
+
+```go
+// Old system using RabbitMQ
+oldRouter, _ := hp.DeployRouter(hp.RABBITMQ)
+
+// New system using Kafka
+newRouter, _ := hp.DeployRouter(hp.KAFKA)
+
+// During migration, publish to both
+func publishOrder(order Order) {
+    oldRouter.Dispatch("orders", order)
+    newRouter.Dispatch("orders", order)
+}
+```
+
 ## 📊 Implementation Status
 
 - **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis
@@ -384,6 +563,43 @@ An embedded system deployable version of HybridPipe is under development in Rust
 - **Thread Safety**: Added mutex protection and proper resource cleanup
 - **Robustness**: Added connection validation, panic recovery, and timeouts
 - **Consistency**: Standardized function signatures and naming conventions
+
+## 📈 Future Roadmap
+
+HybridPipe has several planned enhancements:
+
+### Short-Term Roadmap
+
+1. **Additional Protocol Support**:
+   - Apache Pulsar integration
+   - gRPC streaming support
+   - WebSocket support
+
+2. **Enhanced Features**:
+   - Message batching for high-throughput scenarios
+   - Automatic reconnection and recovery for all protocols
+   - Circuit breaker pattern implementation
+
+3. **Performance Improvements**:
+   - Optimized serialization options (Protocol Buffers, MessagePack)
+   - Connection pooling for all protocols
+   - Asynchronous dispatch operations
+
+### Long-Term Vision
+
+1. **Cross-Language Support**:
+   - Client libraries for other languages (Python, Java, JavaScript)
+   - Language-agnostic serialization formats
+
+2. **Advanced Patterns**:
+   - Request-reply pattern support
+   - Publish-subscribe with filtering
+   - Competing consumers pattern
+
+3. **Enterprise Features**:
+   - Message tracing and monitoring
+   - Integration with service meshes
+   - Enhanced security features
 
 ## 👥 Contributing
 
