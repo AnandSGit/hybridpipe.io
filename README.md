@@ -62,18 +62,19 @@ HybridPipe provides a unified messaging interface for various message brokers an
 
 ## 🚀 Supported Messaging Systems
 
-| Platform | Status | Description |
-|----------|--------|-------------|
-| [Apache Kafka](https://kafka.apache.org/) | ✅ Full | Distributed streaming platform |
-| [NATS](https://nats.io/) | ✅ Full | Cloud-native messaging system |
-| [RabbitMQ](https://www.rabbitmq.com/) | ✅ Full | Message broker supporting multiple protocols |
-| [AMQP 1.0](https://www.amqp.org) | ✅ Full | Advanced Message Queuing Protocol |
-| [Apache Qpid](https://qpid.apache.org/) | ✅ Full | Enterprise messaging system |
-| [MQTT](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html) | ✅ Full | IoT connectivity protocol |
-| [NSQ](https://nsq.io/) | ✅ Full | Realtime distributed messaging platform |
-| [Redis](https://redis.io/) | ✅ Full | In-memory data structure store |
-| [TCP/IP](https://en.wikipedia.org/wiki/Internet_protocol_suite) | ✅ Full | Direct TCP socket communication |
-| [ZeroMQ](https://zeromq.org/) | ✅ Full | Distributed messaging library |
+| Platform | Status | Description | Implementation |
+|----------|--------|-------------|----------------|
+| [Apache Kafka](https://kafka.apache.org/) | ✅ Full | Distributed streaming platform | Native library |
+| [NATS](https://nats.io/) | ✅ Full | Cloud-native messaging system | Native library |
+| [RabbitMQ](https://www.rabbitmq.com/) | ✅ Full | Message broker supporting multiple protocols | Native library |
+| [AMQP 1.0](https://www.amqp.org) | ✅ Full | Advanced Message Queuing Protocol | Native library |
+| [Apache Qpid](https://qpid.apache.org/) | ✅ Full | Enterprise messaging system | Native library |
+| [MQTT](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html) | ✅ Full | IoT connectivity protocol | Native library |
+| [NSQ](https://nsq.io/) | ✅ Full | Realtime distributed messaging platform | Native library |
+| [Redis](https://redis.io/) | ✅ Full | In-memory data structure store | Native library |
+| [TCP/IP](https://en.wikipedia.org/wiki/Internet_protocol_suite) | ✅ Full | Direct TCP socket communication | Native library |
+| [ZeroMQ](https://zeromq.org/) | ✅ Full | Distributed messaging library | Native library |
+| [NetChan](https://github.com/AnandSGit/hybridpipe.io/netchan) | ✅ Full | Go channels over network | Native library |
 
 ## 📦 Installation
 
@@ -166,6 +167,12 @@ ZMQCurveServerKey = ""
 ZMQCurvePublicKey = ""
 ZMQCurveSecretKey = ""
 
+[NETCHAN]
+NetChanServer = "localhost"
+NetChanPort = 8080
+NetChanBufferSize = 10
+NetChanTimeout = 5000
+
 [GENERAL]
 DBLocation     = "/path/to/config"
 ```
@@ -195,6 +202,7 @@ Choosing the right protocol depends on your specific requirements:
 | **Redis** | Simple pub/sub, caching integration | Fast, simple setup, widely deployed | Limited delivery guarantees |
 | **TCP/IP** | Custom protocols, direct communication | Full control, no dependencies | Requires more manual implementation |
 | **AMQP/Qpid** | Enterprise integration | Standardized, interoperable | More complex setup |
+| **NetChan** | Go inter-process communication | Familiar Go channel semantics, type safety | Limited to Go applications |
 
 ### Code Examples
 
@@ -392,6 +400,36 @@ message := map[string]interface{}{
 zmqConn.Dispatch("commands", message)
 ```
 
+#### NetChan Example
+
+```go
+// Connect to NetChan
+netChanConn, err := hp.DeployRouter(hp.NETCHAN)
+if err != nil {
+    log.Fatalf("Failed to connect to NetChan: %v", err)
+}
+defer netChanConn.Close()
+
+// Define a message handler
+handleNetChanMessage := func(data interface{}) {
+    if msg, ok := data.(map[string]interface{}); ok {
+        log.Printf("NetChan message: %v (from: %v)",
+            msg["content"], msg["sender"])
+    }
+}
+
+// Subscribe to a channel
+netChanConn.Accept("interprocess", handleNetChanMessage)
+
+// Send a message
+message := map[string]interface{}{
+    "sender":   "service-a",
+    "content":  "Hello from another process!",
+    "timestamp": time.Now().Unix(),
+}
+netChanConn.Dispatch("interprocess", message)
+```
+
 #### Using Multiple Messaging Systems Simultaneously
 
 ```go
@@ -420,6 +458,9 @@ defer tcpConn.Close()
 zmqConn, _ := hp.DeployRouter(hp.ZEROMQ)
 defer zmqConn.Close()
 
+netChanConn, _ := hp.DeployRouter(hp.NETCHAN)
+defer netChanConn.Close()
+
 // Send the same message via all systems
 data := map[string]string{"status": "active", "message": "System online"}
 
@@ -431,6 +472,7 @@ nsqConn.Dispatch("app.status", data)
 redisConn.Dispatch("app.status", data)
 tcpConn.Dispatch("app.status", data)
 zmqConn.Dispatch("app.status", data)
+netChanConn.Dispatch("app.status", data)
 ```
 
 ## 🔒 Security
@@ -501,6 +543,8 @@ const (
     NSQ
     TCP
     REDIS
+    NETCHAN
+    MOCK
 )
 ```
 
@@ -588,7 +632,7 @@ func publishOrder(order Order) {
 
 ## 📊 Implementation Status
 
-- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis, ZeroMQ
+- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis, ZeroMQ, NetChan
 - **Partially Implemented**: None
 
 An embedded system deployable version of HybridPipe is under development in Rust.
@@ -597,6 +641,7 @@ An embedded system deployable version of HybridPipe is under development in Rust
 
 ### New Protocol Implementations (April 19, 2025)
 
+- **NetChan Support**: Added implementation of Go channels over network for inter-process communication
 - **ZeroMQ Support**: Added full implementation of ZeroMQ protocol using zmq4 library
 - **NSQ Support**: Added full implementation of NSQ protocol using go-nsq client
 - **TCP/IP Support**: Added direct TCP/IP communication with both client and server modes

@@ -111,10 +111,10 @@ func TestMyFunction(t *testing.T) {
     // Create a mock router
     mock, _ := hp.DeployRouter(hp.MOCK)
     defer mock.Close()
-    
+
     // Get the mock packet for additional testing
     mockPacket := mock.(*hp.MockPacket)
-    
+
     // Set up a test subscription
     received := make(chan bool, 1)
     mock.Accept("test.topic", func(data interface{}) {
@@ -123,15 +123,15 @@ func TestMyFunction(t *testing.T) {
             received <- true
         }
     })
-    
+
     // Call the function being tested
     MyFunction(mock)
-    
+
     // Verify that a message was sent
     if count := mockPacket.GetMessageCount(); count != 1 {
         t.Errorf("Expected 1 message, got %d", count)
     }
-    
+
     // Verify that the message was received by the handler
     select {
     case <-received:
@@ -155,6 +155,23 @@ func TestMyFunction(t *testing.T) {
 1. **Behavior Differences**: The mock implementation may not perfectly replicate the behavior of actual messaging systems
 2. **Protocol-Specific Features**: Protocol-specific features are not simulated
 3. **Performance Characteristics**: Performance characteristics will differ from actual messaging systems
+4. **Local Only**: Unlike NetChan, the mock implementation only works within a single process
+
+## Comparison with NetChan
+
+Both the Mock implementation and NetChan provide in-memory messaging capabilities, but they serve different purposes:
+
+| Feature | Mock | NetChan |
+|---------|------|--------|
+| **Purpose** | Testing and development | Production inter-process communication |
+| **Scope** | Single process only | Multiple processes across network |
+| **API** | HybridPipe interface | HybridPipe interface + direct channel API |
+| **Performance** | Optimized for testing | Optimized for production use |
+| **Persistence** | In-memory only | In-memory only |
+| **Error Simulation** | Yes | No |
+| **Inspection Tools** | Yes | No |
+
+Use the Mock implementation for testing and development, and NetChan for actual inter-process communication in production environments.
 
 ## Conclusion
 

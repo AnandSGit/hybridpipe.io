@@ -1,6 +1,6 @@
 # NetChan: Network Channels for Go
 
-NetChan is a Go library that extends the concept of Go channels across network boundaries, allowing different processes to communicate using the familiar channel semantics.
+NetChan is a Go library that extends the concept of Go channels across network boundaries, allowing different processes to communicate using the familiar channel semantics. It is fully integrated with the HybridPipe messaging system, providing a consistent interface for inter-process communication.
 
 ## Features
 
@@ -17,6 +17,41 @@ NetChan is a Go library that extends the concept of Go channels across network b
 ```bash
 go get github.com/AnandSGit/hybridpipe.io/netchan
 ```
+
+## HybridPipe Integration
+
+NetChan is fully integrated with the HybridPipe messaging system, allowing you to use it alongside other messaging protocols with a consistent interface:
+
+```go
+import (
+    "fmt"
+    "log"
+
+    hp "github.com/AnandSGit/hybridpipe.io"
+)
+
+func main() {
+    // Create a NetChan router through HybridPipe
+    router, err := hp.DeployRouter(hp.NETCHAN)
+    if err != nil {
+        log.Fatalf("Failed to deploy NetChan router: %v", err)
+    }
+    defer router.Close()
+
+    // Subscribe to a channel
+    router.Accept("my-channel", func(data interface{}) {
+        fmt.Printf("Received: %v\n", data)
+    })
+
+    // Send a message
+    router.Dispatch("my-channel", "Hello, NetChan!")
+
+    // Keep the application running
+    select {}
+}
+```
+
+This allows you to easily switch between NetChan and other messaging systems without changing your application code.
 
 ## Quick Start
 
@@ -170,21 +205,21 @@ netchan.WithTLS(config)             // Enable TLS encryption
 func main() {
     ch1 := netchan.Dial[int]("localhost:8080")
     ch2 := netchan.Dial[string]("localhost:8081")
-    
+
     for {
         // Create select cases
         case1 := netchan.RecvCase(ch1)
         case2 := netchan.RecvCase(ch2)
         timeout := netchan.TimeoutCase(5 * time.Second)
-        
+
         // Perform select
         chosen, recv, recvOK, err := netchan.Select([]netchan.Case{case1, case2, timeout})
-        
+
         if err != nil {
             log.Printf("Select error: %v", err)
             continue
         }
-        
+
         switch chosen {
         case 0: // ch1
             if recvOK {
