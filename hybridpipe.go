@@ -28,6 +28,12 @@ const (
 	MQTT
 	// QPID - https://qpid.apache.org/
 	QPID
+	// NSQ - https://nsq.io/
+	NSQ
+	// TCP - Direct TCP/IP communication
+	TCP
+	// REDIS - https://redis.io/
+	REDIS
 )
 
 // RoutersMap defines Broker or Router Registry for Pipe creation.
@@ -49,6 +55,9 @@ func init() {
 	RoutersMap[AMQP1] = reflect.TypeOf((*AMQPPacket)(nil)).Elem()
 	RoutersMap[MQTT] = reflect.TypeOf((*MQTTPacket)(nil)).Elem()
 	RoutersMap[QPID] = reflect.TypeOf((*QpidPacket)(nil)).Elem()
+	RoutersMap[NSQ] = reflect.TypeOf((*NSQPacket)(nil)).Elem()
+	RoutersMap[TCP] = reflect.TypeOf((*TCPPacket)(nil)).Elem()
+	RoutersMap[REDIS] = reflect.TypeOf((*RedisPacket)(nil)).Elem()
 }
 
 // HybridPipe defines the interface for all messaging implementations.
