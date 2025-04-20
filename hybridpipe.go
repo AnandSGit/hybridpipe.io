@@ -34,6 +34,8 @@ const (
 	TCP
 	// REDIS - https://redis.io/
 	REDIS
+	// MOCK - In-memory mock implementation for testing
+	MOCK
 )
 
 // RoutersMap defines Broker or Router Registry for Pipe creation.
@@ -58,6 +60,7 @@ func init() {
 	RoutersMap[NSQ] = reflect.TypeOf((*NSQPacket)(nil)).Elem()
 	RoutersMap[TCP] = reflect.TypeOf((*TCPPacket)(nil)).Elem()
 	RoutersMap[REDIS] = reflect.TypeOf((*RedisPacket)(nil)).Elem()
+	RoutersMap[MOCK] = reflect.TypeOf((*MockPacket)(nil)).Elem()
 }
 
 // HybridPipe defines the interface for all messaging implementations.
@@ -88,6 +91,19 @@ func DeployRouter(brokerType int) (HybridPipe, error) {
 	// Validate broker type
 	if _, exists := RoutersMap[brokerType]; !exists {
 		return nil, fmt.Errorf("unsupported broker type: %d", brokerType)
+	}
+
+	// Special handling for MOCK broker type
+	if brokerType == MOCK {
+		// Create a new MockPacket with a default name
+		mock := NewMockPacket("default")
+
+		// Connect to the mock messaging system
+		if err := mock.Connect(); err != nil {
+			return nil, fmt.Errorf("failed to connect to mock messaging system: %w", err)
+		}
+
+		return mock, nil
 	}
 
 	// Create a new instance of the requested broker implementation
