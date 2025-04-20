@@ -33,6 +33,7 @@ var (
 	nsqCount   int
 	tcpCount   int
 	redisCount int
+	zmqCount   int
 	mockCount  int
 	mutex      sync.Mutex
 )
@@ -118,6 +119,15 @@ func RedisHandler(data interface{}) {
 	fmt.Printf("[Redis] Message #%d: %v\n", count, data)
 }
 
+// ZeroMQHandler processes messages received via ZeroMQ
+func ZeroMQHandler(data interface{}) {
+	mutex.Lock()
+	zmqCount++
+	count := zmqCount
+	mutex.Unlock()
+	fmt.Printf("[ZeroMQ] Message #%d: %v\n", count, data)
+}
+
 // MockHandler processes messages received via the mock implementation
 func MockHandler(data interface{}) {
 	mutex.Lock()
@@ -151,6 +161,7 @@ func setupConsumer(wg *sync.WaitGroup) {
 		{"NSQ", dc.NSQ, NSQHandler, "hybridpipe.test.nsq"},
 		{"TCP", dc.TCP, TCPHandler, "hybridpipe.test.tcp"},
 		{"Redis", dc.REDIS, RedisHandler, "hybridpipe.test.redis"},
+		{"ZeroMQ", dc.ZEROMQ, ZeroMQHandler, "hybridpipe.test.zmq"},
 		{"Mock", dc.MOCK, MockHandler, "hybridpipe.test.mock"},
 	}
 
@@ -202,6 +213,7 @@ func setupConsumer(wg *sync.WaitGroup) {
 	log.Printf("NSQ: %d\n", nsqCount)
 	log.Printf("TCP: %d\n", tcpCount)
 	log.Printf("Redis: %d\n", redisCount)
+	log.Printf("ZeroMQ: %d\n", zmqCount)
 	log.Printf("Mock: %d\n", mockCount)
 }
 
@@ -220,8 +232,8 @@ func main() {
 	go func() {
 		for range ticker.C {
 			mutex.Lock()
-			log.Printf("Current message counts - AMQP: %d, NATS: %d, Kafka: %d, MQTT: %d, Qpid: %d, RabbitMQ: %d, NSQ: %d, TCP: %d, Redis: %d, Mock: %d\n",
-				amqpCount, natsCount, kafkaCount, mqttCount, qpidCount, rmqCount, nsqCount, tcpCount, redisCount, mockCount)
+			log.Printf("Current message counts - AMQP: %d, NATS: %d, Kafka: %d, MQTT: %d, Qpid: %d, RabbitMQ: %d, NSQ: %d, TCP: %d, Redis: %d, ZeroMQ: %d, Mock: %d\n",
+				amqpCount, natsCount, kafkaCount, mqttCount, qpidCount, rmqCount, nsqCount, tcpCount, redisCount, zmqCount, mockCount)
 			mutex.Unlock()
 		}
 	}()

@@ -10,7 +10,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/AnandSGit/hybridpipe.io)](https://goreportcard.com/report/github.com/AnandSGit/hybridpipe.io)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-*Version: 2.0.0 (June 2023)*
+*Version: 2.0.0 (April 19, 2025)*
 
 </div>
 
@@ -28,6 +28,7 @@
     - [NSQ Example](#nsq-example)
     - [TCP Example](#tcp-example)
     - [Redis Example](#redis-example)
+    - [ZeroMQ Example](#zeromq-example)
 - [Security](#-security)
 - [API Reference](#-api-reference)
 - [Architecture](#-architecture)
@@ -72,7 +73,7 @@ HybridPipe provides a unified messaging interface for various message brokers an
 | [NSQ](https://nsq.io/) | ✅ Full | Realtime distributed messaging platform |
 | [Redis](https://redis.io/) | ✅ Full | In-memory data structure store |
 | [TCP/IP](https://en.wikipedia.org/wiki/Internet_protocol_suite) | ✅ Full | Direct TCP socket communication |
-| [ZeroMQ](https://zeromq.org/) | 🔄 Partial | Distributed messaging library |
+| [ZeroMQ](https://zeromq.org/) | ✅ Full | Distributed messaging library |
 
 ## 📦 Installation
 
@@ -81,7 +82,7 @@ HybridPipe provides a unified messaging interface for various message brokers an
 go get -u github.com/AnandSGit/hybridpipe.io
 
 # Or add to your go.mod file
-# require github.com/AnandSGit/hybridpipe.io v2.0.0
+# require github.com/AnandSGit/hybridpipe.io v2.0.0 // April 19, 2025
 ```
 
 ## ⚙️ Configuration
@@ -150,6 +151,20 @@ MQTTCertFile = "/path/to/mqtt-client.pem"
 MQTTKeyFile = "/path/to/mqtt-client.key"
 MQTTCAFile = "/path/to/mqtt-ca.pem"
 MQTTConnectTimeout = 10
+
+[ZEROMQ]
+ZMQEndpoints = "tcp://localhost:5555,tcp://localhost:5556"
+ZMQPublishEndpoint = "tcp://*:5555"
+ZMQSubscribeEndpoint = "tcp://localhost:5555"
+ZMQSocketType = "PUB_SUB"
+ZMQHighWaterMark = 1000
+ZMQLinger = 1000
+ZMQConnectTimeout = 10
+ZMQIOThreads = 1
+ZMQSecurityMechanism = "NULL"
+ZMQCurveServerKey = ""
+ZMQCurvePublicKey = ""
+ZMQCurveSecretKey = ""
 
 [GENERAL]
 DBLocation     = "/path/to/config"
@@ -346,6 +361,37 @@ notification := map[string]interface{}{
 redisConn.Dispatch("notifications", notification)
 ```
 
+#### ZeroMQ Example
+
+```go
+// Connect to ZeroMQ
+zmqConn, err := hp.DeployRouter(hp.ZEROMQ)
+if err != nil {
+    log.Fatalf("Failed to connect to ZeroMQ: %v", err)
+}
+defer zmqConn.Close()
+
+// Define a message handler
+handleZMQMessage := func(data interface{}) {
+    if msg, ok := data.(map[string]interface{}); ok {
+        log.Printf("ZeroMQ message: %v (type: %v)",
+            msg["payload"], msg["type"])
+    }
+}
+
+// Subscribe to a topic
+zmqConn.Accept("commands", handleZMQMessage)
+
+// Send a message
+message := map[string]interface{}{
+    "type":    "command",
+    "payload": "restart",
+    "target":  "service-a",
+    "timestamp": time.Now().Unix(),
+}
+zmqConn.Dispatch("commands", message)
+```
+
 #### Using Multiple Messaging Systems Simultaneously
 
 ```go
@@ -371,6 +417,9 @@ defer redisConn.Close()
 tcpConn, _ := hp.DeployRouter(hp.TCP)
 defer tcpConn.Close()
 
+zmqConn, _ := hp.DeployRouter(hp.ZEROMQ)
+defer zmqConn.Close()
+
 // Send the same message via all systems
 data := map[string]string{"status": "active", "message": "System online"}
 
@@ -381,6 +430,7 @@ mqttConn.Dispatch("app.status", data)
 nsqConn.Dispatch("app.status", data)
 redisConn.Dispatch("app.status", data)
 tcpConn.Dispatch("app.status", data)
+zmqConn.Dispatch("app.status", data)
 ```
 
 ## 🔒 Security
@@ -538,15 +588,16 @@ func publishOrder(order Order) {
 
 ## 📊 Implementation Status
 
-- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis
-- **Partially Implemented**: ZeroMQ (structure ready)
+- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis, ZeroMQ
+- **Partially Implemented**: None
 
 An embedded system deployable version of HybridPipe is under development in Rust.
 
 ## 🔄 Recent Improvements
 
-### New Protocol Implementations (June 2023)
+### New Protocol Implementations (April 19, 2025)
 
+- **ZeroMQ Support**: Added full implementation of ZeroMQ protocol using zmq4 library
 - **NSQ Support**: Added full implementation of NSQ protocol using go-nsq client
 - **TCP/IP Support**: Added direct TCP/IP communication with both client and server modes
 - **Redis Support**: Added Redis pub/sub implementation using go-redis client
@@ -555,7 +606,7 @@ An embedded system deployable version of HybridPipe is under development in Rust
 - **Thread Safety**: Improved mutex protection across all protocol implementations
 - **Error Handling**: Enhanced error context and recovery mechanisms
 
-### Code Quality Improvements (June 2023)
+### Code Quality Improvements (April 19, 2025)
 
 - **Documentation**: Added comprehensive package and function documentation
 - **Error Handling**: Implemented consistent error patterns with context

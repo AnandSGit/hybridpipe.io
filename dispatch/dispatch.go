@@ -68,7 +68,7 @@ func setupProducer(wg *sync.WaitGroup) {
 	// Parse protocol list
 	var selectedProtocols []string
 	if protocolsFlag == "all" {
-		selectedProtocols = []string{"AMQP", "NATS", "Kafka", "MQTT", "Qpid", "RabbitMQ", "NSQ", "TCP", "Redis", "Mock"}
+		selectedProtocols = []string{"AMQP", "NATS", "Kafka", "MQTT", "Qpid", "RabbitMQ", "NSQ", "TCP", "Redis", "ZeroMQ", "Mock"}
 	} else {
 		// Parse comma-separated list (simplified for this example)
 		selectedProtocols = []string{protocolsFlag}
@@ -85,6 +85,7 @@ func setupProducer(wg *sync.WaitGroup) {
 		"NSQ":      dc.NSQ,
 		"TCP":      dc.TCP,
 		"Redis":    dc.REDIS,
+		"ZeroMQ":   dc.ZEROMQ,
 		"Mock":     dc.MOCK,
 	}
 
@@ -192,7 +193,7 @@ func main() {
 	// Parse command line flags
 	flag.IntVar(&messageCount, "count", 100, "Number of messages to send")
 	flag.IntVar(&intervalMs, "interval", 100, "Interval between messages in milliseconds")
-	flag.StringVar(&protocolsFlag, "protocols", "all", "Comma-separated list of protocols to use (AMQP,NATS,Kafka,MQTT,Qpid,RabbitMQ,NSQ,TCP,Redis,Mock) or 'all'")
+	flag.StringVar(&protocolsFlag, "protocols", "all", "Comma-separated list of protocols to use (AMQP,NATS,Kafka,MQTT,Qpid,RabbitMQ,NSQ,TCP,Redis,ZeroMQ,Mock) or 'all'")
 	flag.StringVar(&topicPrefix, "topic", "hybridpipe", "Topic prefix for messages")
 	flag.StringVar(&messageTypeFlag, "type", "person", "Message type (simple, json, person, sensor)")
 	flag.Parse()

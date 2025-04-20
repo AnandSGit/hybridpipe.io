@@ -32,6 +32,7 @@ type HybridDB struct {
 	NSQF      `toml:"NSQ"`
 	TCPF      `toml:"TCP"`
 	RedisF    `toml:"REDIS"`
+	ZMQF      `toml:"ZEROMQ"`
 	GeneralF  `toml:"GENERAL"`
 }
 
@@ -217,6 +218,34 @@ type RedisF struct {
 	RedisCAFile string `toml:"RedisCAFile"`
 }
 
+// ZMQF contains ZeroMQ specific configuration
+type ZMQF struct {
+	// ZMQEndpoints is a comma-separated list of ZeroMQ endpoints (e.g., tcp://localhost:5555)
+	ZMQEndpoints string `toml:"ZMQEndpoints"`
+	// ZMQPublishEndpoint is the endpoint for publishing messages
+	ZMQPublishEndpoint string `toml:"ZMQPublishEndpoint"`
+	// ZMQSubscribeEndpoint is the endpoint for subscribing to messages
+	ZMQSubscribeEndpoint string `toml:"ZMQSubscribeEndpoint"`
+	// ZMQSocketType defines the socket type (PUB, SUB, PUSH, PULL, etc.)
+	ZMQSocketType string `toml:"ZMQSocketType"`
+	// ZMQHighWaterMark sets the high water mark for sockets
+	ZMQHighWaterMark int `toml:"ZMQHighWaterMark"`
+	// ZMQLinger sets the linger period for sockets in milliseconds
+	ZMQLinger int `toml:"ZMQLinger"`
+	// ZMQConnectTimeout is the connection timeout in seconds
+	ZMQConnectTimeout int `toml:"ZMQConnectTimeout"`
+	// ZMQIOThreads sets the number of I/O threads for the ZeroMQ context
+	ZMQIOThreads int `toml:"ZMQIOThreads"`
+	// ZMQSecurityMechanism sets the security mechanism (NULL, PLAIN, CURVE)
+	ZMQSecurityMechanism string `toml:"ZMQSecurityMechanism"`
+	// ZMQCurveServerKey is the server's public key for CURVE security
+	ZMQCurveServerKey string `toml:"ZMQCurveServerKey"`
+	// ZMQCurvePublicKey is the client's public key for CURVE security
+	ZMQCurvePublicKey string `toml:"ZMQCurvePublicKey"`
+	// ZMQCurveSecretKey is the client's secret key for CURVE security
+	ZMQCurveSecretKey string `toml:"ZMQCurveSecretKey"`
+}
+
 // GeneralF contains general configuration options
 type GeneralF struct {
 	// DBPath is the path to the database location
@@ -291,6 +320,9 @@ func processConfig() {
 	HPipeConfig.RedisF.RedisCertFile = expandEnvPath(HPipeConfig.RedisF.RedisCertFile)
 	HPipeConfig.RedisF.RedisKeyFile = expandEnvPath(HPipeConfig.RedisF.RedisKeyFile)
 	HPipeConfig.RedisF.RedisCAFile = expandEnvPath(HPipeConfig.RedisF.RedisCAFile)
+	HPipeConfig.ZMQF.ZMQCurveServerKey = expandEnvPath(HPipeConfig.ZMQF.ZMQCurveServerKey)
+	HPipeConfig.ZMQF.ZMQCurvePublicKey = expandEnvPath(HPipeConfig.ZMQF.ZMQCurvePublicKey)
+	HPipeConfig.ZMQF.ZMQCurveSecretKey = expandEnvPath(HPipeConfig.ZMQF.ZMQCurveSecretKey)
 	HPipeConfig.GeneralF.DBPath = expandEnvPath(HPipeConfig.GeneralF.DBPath)
 }
 
