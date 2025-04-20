@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"sync"
@@ -52,7 +51,7 @@ func createTLSConfig(clientCert, clientKey, caCert string) (*tls.Config, error) 
 	tlsConfig.Certificates = []tls.Certificate{cert}
 
 	// Load CA certificate
-	caCertData, err := ioutil.ReadFile(caCert)
+	caCertData, err := os.ReadFile(caCert)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load CA certificate: %w", err)
 	}
@@ -64,8 +63,7 @@ func createTLSConfig(clientCert, clientKey, caCert string) (*tls.Config, error) 
 	}
 	tlsConfig.RootCAs = caCertPool
 
-	// Build name to certificate map
-	tlsConfig.BuildNameToCertificate()
+	// Return the TLS config
 	return &tlsConfig, nil
 }
 
@@ -118,10 +116,13 @@ func (kp *KafkaPacket) Connect() error {
 
 // Dispatch publishes a message to the specified pipe.
 func (kp *KafkaPacket) Dispatch(pipe string, data interface{}) error {
-	// Validate connection
+	// Validate connection with read lock
+	kp.mutex.RLock()
 	if kp.DialerConn == nil {
+		kp.mutex.RUnlock()
 		return fmt.Errorf("not connected to Kafka server")
 	}
+	kp.mutex.RUnlock()
 
 	// Get or create writer for the pipe
 	kp.mutex.Lock()
@@ -169,10 +170,13 @@ func (kp *KafkaPacket) Dispatch(pipe string, data interface{}) error {
 
 // Accept subscribes to messages from the specified pipe and processes them with the provided function.
 func (kp *KafkaPacket) Accept(pipe string, fn Process) error {
-	// Validate connection
+	// Validate connection with read lock
+	kp.mutex.RLock()
 	if kp.DialerConn == nil {
+		kp.mutex.RUnlock()
 		return fmt.Errorf("not connected to Kafka server")
 	}
+	kp.mutex.RUnlock()
 
 	// Check if already subscribed
 	kp.mutex.Lock()
@@ -257,10 +261,13 @@ func (kp *KafkaPacket) readMessages(ctx context.Context, pipe string, reader *ka
 
 // Remove unsubscribes from the specified pipe.
 func (kp *KafkaPacket) Remove(pipe string) error {
-	// Validate connection
+	// Validate connection with read lock
+	kp.mutex.RLock()
 	if kp.DialerConn == nil {
+		kp.mutex.RUnlock()
 		return fmt.Errorf("not connected to Kafka server")
 	}
+	kp.mutex.RUnlock()
 
 	// Lock for thread safety
 	kp.mutex.Lock()
@@ -292,10 +299,13 @@ func (kp *KafkaPacket) Remove(pipe string) error {
 
 // Close terminates all connections to the Kafka server.
 func (kp *KafkaPacket) Close() {
-	// Check if connected
+	// Check if connected with read lock
+	kp.mutex.RLock()
 	if kp.DialerConn == nil {
+		kp.mutex.RUnlock()
 		return
 	}
+	kp.mutex.RUnlock()
 
 	// Lock for thread safety
 	kp.mutex.Lock()
