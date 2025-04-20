@@ -6,11 +6,14 @@
 
 NetChan is a Go library that extends the concept of Go channels across network boundaries, allowing different processes to communicate using the familiar channel semantics. It provides a simple, type-safe API that closely mirrors Go's native channels while handling all the complexities of network communication under the hood.
 
+NetChan is fully integrated with the HybridPipe messaging system, providing a consistent interface for inter-process communication alongside other messaging protocols like Kafka, NATS, RabbitMQ, and more.
+
 ## Table of Contents
 
 - [Concepts](#concepts)
 - [Architecture](#architecture)
 - [API Reference](#api-reference)
+- [HybridPipe Integration](#hybridpipe-integration)
 - [Protocol Specification](#protocol-specification)
 - [Security Considerations](#security-considerations)
 - [Performance Characteristics](#performance-characteristics)
@@ -176,6 +179,57 @@ netchan.WithCompression(level)      // Enable compression
 netchan.WithTLS(config)             // Enable TLS encryption
 ```
 
+## HybridPipe Integration
+
+NetChan is fully integrated with the HybridPipe messaging system, allowing you to use it alongside other messaging protocols with a consistent interface.
+
+### Using NetChan through HybridPipe
+
+```go
+import (
+    "fmt"
+    "log"
+
+    hp "github.com/AnandSGit/hybridpipe.io"
+)
+
+func main() {
+    // Create a NetChan router through HybridPipe
+    router, err := hp.DeployRouter(hp.NETCHAN)
+    if err != nil {
+        log.Fatalf("Failed to deploy NetChan router: %v", err)
+    }
+    defer router.Close()
+
+    // Subscribe to a channel
+    router.Accept("my-channel", func(data interface{}) {
+        fmt.Printf("Received: %v\n", data)
+    })
+
+    // Send a message
+    router.Dispatch("my-channel", "Hello, NetChan!")
+}
+```
+
+### Configuration
+
+NetChan can be configured through the HybridPipe configuration file:
+
+```toml
+[NETCHAN]
+NetChanServer = "localhost"
+NetChanPort = 8080
+NetChanBufferSize = 10
+NetChanTimeout = 5000
+```
+
+### Benefits of HybridPipe Integration
+
+1. **Consistent API**: Use the same API for NetChan as for other messaging systems
+2. **Easy Migration**: Switch between messaging systems without changing application code
+3. **Centralized Configuration**: Configure all messaging systems in one place
+4. **Combined Functionality**: Use NetChan alongside other messaging systems in the same application
+
 ## Protocol Specification
 
 NetChan uses a binary protocol for efficiency. The protocol consists of:
@@ -320,21 +374,21 @@ func main() {
 func main() {
     ch1 := netchan.Dial[int]("localhost:8080")
     ch2 := netchan.Dial[string]("localhost:8081")
-    
+
     for {
         // Create select cases
         case1 := netchan.RecvCase(ch1)
         case2 := netchan.RecvCase(ch2)
         timeout := netchan.TimeoutCase(5 * time.Second)
-        
+
         // Perform select
         chosen, recv, recvOK, err := netchan.Select([]netchan.Case{case1, case2, timeout})
-        
+
         if err != nil {
             log.Printf("Select error: %v", err)
             continue
         }
-        
+
         switch chosen {
         case 0: // ch1
             if recvOK {
