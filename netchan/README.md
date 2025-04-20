@@ -5,6 +5,7 @@ NetChan is a Go library that extends the concept of Go channels across network b
 ## Features
 
 - **Go Channel Semantics**: Use the same familiar send/receive operations as native Go channels
+- **Native Channel Syntax**: Optional support for using Go's native channel operators (`<-` and `->`) with network channels
 - **Type Safety**: Maintains Go's type safety across the network
 - **Buffered and Unbuffered Channels**: Support for both buffered and unbuffered channels
 - **Automatic Reconnection**: Handles network failures and reconnects automatically
@@ -52,6 +53,49 @@ func main() {
 ```
 
 This allows you to easily switch between NetChan and other messaging systems without changing your application code.
+
+## Using Native Channel Syntax
+
+NetChan provides a `ChannelWrapper` that allows you to use Go's native channel operators (`<-` and `->`) with network channels:
+
+```go
+// Create a NetChan
+netChan, err := netchan.Dial[string]("localhost:8080", "")
+if err != nil {
+    log.Fatalf("Failed to connect: %v", err)
+}
+
+// Create a channel wrapper
+wrapper := netchan.NewChannelWrapper(netChan, 10)
+if err := wrapper.Initialize(); err != nil {
+    log.Fatalf("Failed to initialize wrapper: %v", err)
+}
+
+// Get send and receive channels
+sendChan := wrapper.SendChan()
+recvChan := wrapper.RecvChan()
+
+// Send using native channel syntax
+sendChan <- "Hello, NetChan!"
+
+// Receive using native channel syntax
+msg, ok := <-recvChan
+if ok {
+    fmt.Printf("Received: %s\n", msg)
+}
+
+// Use with select statement
+select {
+case sendChan <- "Another message":
+    fmt.Println("Sent message")
+case msg, ok := <-recvChan:
+    if ok {
+        fmt.Printf("Received: %s\n", msg)
+    }
+case <-time.After(5 * time.Second):
+    fmt.Println("Timeout")
+}
+```
 
 ## Quick Start
 

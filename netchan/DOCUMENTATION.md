@@ -110,6 +110,33 @@ NetChan is built on a layered architecture:
 
 ## API Reference
 
+### Native Channel Syntax
+
+NetChan provides a `ChannelWrapper` that allows you to use Go's native channel operators (`<-` and `->`) with network channels:
+
+```go
+// Create a new channel wrapper
+wrapper := netchan.NewChannelWrapper(netChan, bufferSize)
+
+// Initialize the wrapper (starts background goroutines)
+wrapper.Initialize()
+
+// Get a send-only channel
+sendChan := wrapper.SendChan()
+
+// Get a receive-only channel
+recvChan := wrapper.RecvChan()
+
+// Send using native channel syntax
+sendChan <- value
+
+// Receive using native channel syntax
+value, ok := <-recvChan
+
+// Close the wrapper
+wrapper.Close()
+```
+
 ### Creating Channels
 
 ```go
@@ -230,6 +257,33 @@ NetChanTimeout = 5000
 3. **Centralized Configuration**: Configure all messaging systems in one place
 4. **Combined Functionality**: Use NetChan alongside other messaging systems in the same application
 
+### Using Native Channel Syntax with HybridPipe
+
+You can combine the HybridPipe integration with the channel wrapper to use native channel syntax with HybridPipe:
+
+```go
+// Create a NetChan adapter for HybridPipe
+type NetChanAdapter struct {
+    router     hp.HybridPipe
+    wrappers   map[string]*netchan.ChannelWrapper[interface{}]
+    bufferSize int
+}
+
+// Get a send channel for a pipe
+sendChan, err := adapter.GetSendChan("my-pipe")
+
+// Get a receive channel for a pipe
+recvChan, err := adapter.GetRecvChan("my-pipe")
+
+// Send using native channel syntax
+sendChan <- "Hello, HybridPipe!"
+
+// Receive using native channel syntax
+msg, ok := <-recvChan
+```
+
+This approach provides the best of both worlds: the consistent API of HybridPipe and the familiar channel syntax of Go.
+
 ## Protocol Specification
 
 NetChan uses a binary protocol for efficiency. The protocol consists of:
@@ -327,6 +381,90 @@ All errors implement the standard Go `error` interface and provide additional co
 
 ## Examples
 
+### Using Native Channel Syntax
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "time"
+
+    "github.com/AnandSGit/hybridpipe.io/netchan"
+)
+
+func main() {
+    // Create a server in a separate goroutine
+    go func() {
+        // Create a NetChan listener
+        netChan, err := netchan.Listen[string](":8080", "")
+        if err != nil {
+            log.Fatalf("Failed to create listener: %v", err)
+        }
+
+        // Create a channel wrapper
+        wrapper := netchan.NewChannelWrapper(netChan, 10)
+        if err := wrapper.Initialize(); err != nil {
+            log.Fatalf("Failed to initialize wrapper: %v", err)
+        }
+
+        fmt.Println("Server: Listening on :8080")
+
+        // Get the receive channel
+        recvChan := wrapper.RecvChan()
+
+        // Use Go channel syntax to receive messages
+        for {
+            // Use native channel syntax to receive
+            msg, ok := <-recvChan
+            if !ok {
+                fmt.Println("Server: Channel closed")
+                break
+            }
+
+            fmt.Printf("Server received: %s\n", msg)
+
+            // Send a response using the send channel
+            wrapper.SendChan() <- fmt.Sprintf("Echo: %s", msg)
+        }
+    }()
+
+    // Wait for server to start
+    time.Sleep(500 * time.Millisecond)
+
+    // Connect to the server
+    netChan, err := netchan.Dial[string]("localhost:8080", "")
+    if err != nil {
+        log.Fatalf("Failed to connect to server: %v", err)
+    }
+
+    // Create a channel wrapper
+    wrapper := netchan.NewChannelWrapper(netChan, 10)
+    if err := wrapper.Initialize(); err != nil {
+        log.Fatalf("Failed to initialize wrapper: %v", err)
+    }
+
+    // Get the send and receive channels
+    sendChan := wrapper.SendChan()
+    recvChan := wrapper.RecvChan()
+
+    // Send a message using Go channel syntax
+    sendChan <- "Hello, NetChan!"
+
+    // Receive the response using Go channel syntax
+    response, ok := <-recvChan
+    if ok {
+        fmt.Printf("Client received: %s\n", response)
+    }
+
+    // Close the wrapper
+    if err := wrapper.Close(); err != nil {
+        log.Printf("Error closing wrapper: %v", err)
+    }
+}
+```
+
 ### Basic Usage
 
 ```go
@@ -364,6 +502,75 @@ func main() {
             continue
         }
         log.Printf("Sent: %d", i)
+    }
+}
+```
+
+### Using Select with Channel Wrapper
+
+```go
+func main() {
+    // Connect to multiple servers
+    netChanA, _ := netchan.Dial[string]("localhost:8081", "")
+    netChanB, _ := netchan.Dial[string]("localhost:8082", "")
+
+    // Create channel wrappers
+    wrapperA := netchan.NewChannelWrapper(netChanA, 10)
+    wrapperA.Initialize()
+
+    wrapperB := netchan.NewChannelWrapper(netChanB, 10)
+    wrapperB.Initialize()
+
+    // Get the receive channels
+    recvChanA := wrapperA.RecvChan()
+    recvChanB := wrapperB.RecvChan()
+
+    // Get the send channels
+    sendChanA := wrapperA.SendChan()
+    sendChanB := wrapperB.SendChan()
+
+    // Create a ticker for regular messages
+    ticker := time.NewTicker(1 * time.Second)
+    defer ticker.Stop()
+
+    // Create a timeout channel
+    timeout := time.After(10 * time.Second)
+
+    // Use select to handle multiple channels
+    counter := 0
+    for {
+        select {
+        case <-timeout:
+            fmt.Println("Timeout reached, exiting")
+            wrapperA.Close()
+            wrapperB.Close()
+            return
+
+        case <-ticker.C:
+            // Alternate between servers
+            if counter%2 == 0 {
+                sendChanA <- fmt.Sprintf("Message %d to Server A", counter)
+            } else {
+                sendChanB <- fmt.Sprintf("Message %d to Server B", counter)
+            }
+            counter++
+
+        case msg, ok := <-recvChanA:
+            if !ok {
+                fmt.Println("Channel A closed")
+                recvChanA = nil // Disable this case
+                continue
+            }
+            fmt.Printf("Received from Server A: %s\n", msg)
+
+        case msg, ok := <-recvChanB:
+            if !ok {
+                fmt.Println("Channel B closed")
+                recvChanB = nil // Disable this case
+                continue
+            }
+            fmt.Printf("Received from Server B: %s\n", msg)
+        }
     }
 }
 ```

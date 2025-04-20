@@ -428,6 +428,24 @@ message := map[string]interface{}{
     "timestamp": time.Now().Unix(),
 }
 netChanConn.Dispatch("interprocess", message)
+
+// Using native Go channel syntax with NetChan
+// Create a channel adapter
+adapter := NewNetChanAdapter(10)
+defer adapter.Close()
+
+// Get send and receive channels for a pipe
+sendChan, _ := adapter.GetSendChan("my-channel")
+recvChan, _ := adapter.GetRecvChan("my-channel")
+
+// Send using native channel syntax
+sendChan <- "Hello, NetChan!"
+
+// Receive using native channel syntax
+msg, ok := <-recvChan
+if ok {
+    fmt.Printf("Received: %s\n", msg)
+}
 ```
 
 #### Using Multiple Messaging Systems Simultaneously
@@ -642,6 +660,9 @@ An embedded system deployable version of HybridPipe is under development in Rust
 ### New Protocol Implementations (April 19, 2025)
 
 - **NetChan Support**: Added implementation of Go channels over network for inter-process communication
+  - **Native Channel Syntax**: Added support for using Go's native channel operators (`<-` and `->`) with NetChan
+  - **Channel Wrapper**: Implemented a wrapper that provides Go channel semantics over the network
+  - **Select Statement Support**: Full support for using NetChan with Go's select statement
 - **ZeroMQ Support**: Added full implementation of ZeroMQ protocol using zmq4 library
 - **NSQ Support**: Added full implementation of NSQ protocol using go-nsq client
 - **TCP/IP Support**: Added direct TCP/IP communication with both client and server modes
