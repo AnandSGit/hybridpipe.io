@@ -1,34 +1,45 @@
+// Package hybridpipe provides a unified messaging interface for various message brokers.
+// It enables communication between microservices or individual processes via
+// different messaging systems like Kafka, NATS, RabbitMQ, ZeroMQ, AMQP 1.0, and MQTT.
 package hybridpipe
 
 import (
 	"bytes"
 	"encoding/gob"
+	"fmt"
 	"log"
 	"reflect"
 )
 
-// Broker ID - User can use this ID to select their communication medium
-// User should use this ID when calling API - "Medium"
-// 	NATS     - https://nats.io/
-//	KAFKA    - https://kafka.apache.org/
-//	RabbitMQ - https://www.rabbitmq.com/
-//	ZeroMQ   - https://zeromq.org/
-//	AMQP 1.0 - https://www.amqp.org
-//	MQTT     - http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
+// Broker types - Users can use these constants to select their communication medium
+// when calling the DeployRouter function.
 const (
+	// NATS - https://nats.io/
 	NATS = iota
+	// KAFKA - https://kafka.apache.org/
 	KAFKA
+	// RABBITMQ - https://www.rabbitmq.com/
 	RABBITMQ
+	// ZEROMQ - https://zeromq.org/
 	ZEROMQ
+	// AMQP1 - https://www.amqp.org
 	AMQP1
+	// MQTT - http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
 	MQTT
 )
 
-// RoutersMap defines Broker or Router Registry for Pipe creation
+// RoutersMap defines Broker or Router Registry for Pipe creation.
+// It maps broker types to their corresponding implementation types.
 var RoutersMap = make(map[int]reflect.Type)
 
 // Initialize the Register Map with all supported interfaces
 func init() {
+	// Initialize configuration
+	if err := ReadConfig(); err != nil {
+		log.Printf("Warning: Failed to read configuration: %v", err)
+	}
+
+	// Register all supported messaging implementations
 	RoutersMap[NATS] = reflect.TypeOf((*NatsPacket)(nil)).Elem()
 	RoutersMap[KAFKA] = reflect.TypeOf((*KafkaPacket)(nil)).Elem()
 	RoutersMap[RABBITMQ] = reflect.TypeOf((*RabbitPacket)(nil)).Elem()
@@ -37,54 +48,75 @@ func init() {
 	RoutersMap[MQTT] = reflect.TypeOf((*MQTTPacket)(nil)).Elem()
 }
 
-// HybridPipe defines the interface for HybridPipe Module
+// HybridPipe defines the interface for all messaging implementations.
+// Any messaging system implementation must satisfy this interface.
 type HybridPipe interface {
+	// Connect establishes a connection to the messaging system.
 	Connect() error
+
+	// Dispatch sends a message to the specified pipe.
 	Dispatch(pipe string, data interface{}) error
+
+	// Accept subscribes to messages from the specified pipe and processes them with the provided function.
 	Accept(pipe string, fn Process) error
+
+	// Remove unsubscribes from the specified pipe.
 	Remove(pipe string) error
+
+	// Close terminates the connection to the messaging system.
 	Close()
 }
 
-// Process defines the callback function that should be called when client receives the message
-type Process = func(d interface{})
+// Process defines the callback function that should be called when a client receives a message.
+type Process = func(data interface{})
 
-// DeployRouter defines the Broker / Router to be used for the communication
-func DeployRouter(bt int) (HybridPipe, error) {
-
-	p := reflect.New(RoutersMap[bt]).Interface().(HybridPipe)
-	if e := p.Connect(); e != nil {
-		return nil, e
+// DeployRouter creates and connects to the specified broker/router for communication.
+// It returns a connected HybridPipe interface for the requested messaging system.
+func DeployRouter(brokerType int) (HybridPipe, error) {
+	// Validate broker type
+	if _, exists := RoutersMap[brokerType]; !exists {
+		return nil, fmt.Errorf("unsupported broker type: %d", brokerType)
 	}
-	return p, nil
+
+	// Create a new instance of the requested broker implementation
+	pipe := reflect.New(RoutersMap[brokerType]).Interface().(HybridPipe)
+
+	// Connect to the messaging system
+	if err := pipe.Connect(); err != nil {
+		return nil, fmt.Errorf("failed to connect to messaging system: %w", err)
+	}
+
+	return pipe, nil
 }
 
-// Encode would user defined data (To be transmitted) into Byte stream.
-func Encode(d interface{}) ([]byte, error) {
+// Encode converts user-defined data (to be transmitted) into a byte stream.
+// It uses Go's gob encoding for serialization.
+func Encode(data interface{}) ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
 
-	var b bytes.Buffer
-	enc := gob.NewEncoder(&b)
-	if e := enc.Encode(&d); e != nil {
-		log.Printf("ToBytes: Encoding error. Reason : %v", e)
-		return nil, e
+	if err := encoder.Encode(&data); err != nil {
+		return nil, fmt.Errorf("encoding error: %w", err)
 	}
-	return b.Bytes(), nil
+
+	return buffer.Bytes(), nil
 }
 
-// Decode would convert the received Byte stream back into user defined interface data
-func Decode(d []byte, a interface{}) error {
+// Decode converts a received byte stream back into user-defined interface data.
+// It uses Go's gob decoding for deserialization.
+func Decode(data []byte, target interface{}) error {
+	reader := bytes.NewReader(data)
+	decoder := gob.NewDecoder(reader)
 
-	N := bytes.NewReader(d)
-	dec := gob.NewDecoder(N)
-	if e := dec.Decode(a); e != nil {
-		log.Printf("ToData: Error Decoding error. Reason : %v", e)
-		return e
+	if err := decoder.Decode(target); err != nil {
+		return fmt.Errorf("decoding error: %w", err)
 	}
 
 	return nil
 }
 
-// Enable would enable a specific user-defined data to be passed via HybridPipe.
-func Enable(DT interface{}) {
-	gob.Register(DT)
+// Enable registers a specific user-defined data type to be passed via HybridPipe.
+// This must be called before sending custom data types through the messaging system.
+func Enable(dataType interface{}) {
+	gob.Register(dataType)
 }

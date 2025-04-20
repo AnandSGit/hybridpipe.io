@@ -7,154 +7,322 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"strconv"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/segmentio/kafka-go"
 )
 
-// KafkaPacket defines the data for handling KAFKA connections for Broker function.
+// KafkaPacket implements the HybridPipe interface for Kafka messaging system.
 type KafkaPacket struct {
-	Readers    map[string]*kafka.Reader
-	Writers    map[string]*kafka.Writer
+	// Readers maps pipe names to their Kafka readers
+	Readers map[string]*kafka.Reader
+	// Writers maps pipe names to their Kafka writers
+	Writers map[string]*kafka.Writer
+	// DialerConn is the Kafka connection dialer
 	DialerConn *kafka.Dialer
-	Server     string
+	// Server is the Kafka server address with port
+	Server string
+	// readerCancel maps pipe names to their context cancel functions
+	readerCancel map[string]context.CancelFunc
+	// mutex protects concurrent access to the maps
+	mutex sync.RWMutex
 }
 
-// TLS creates the TLS configuration objects to be used by KAFKA
-func TLS(cCert, cKey, caCert string) (*tls.Config, error) {
+// createTLSConfig creates the TLS configuration for Kafka connections.
+// It loads client certificates and CA certificates for secure communication.
+func createTLSConfig(clientCert, clientKey, caCert string) (*tls.Config, error) {
+	// Create a basic TLS configuration
+	tlsConfig := tls.Config{
+		MinVersion: tls.VersionTLS12, // Enforce minimum TLS version for security
+	}
 
-	tlsConfig := tls.Config{}
+	// Skip TLS setup if certificates are not provided
+	if clientCert == "" || clientKey == "" || caCert == "" {
+		log.Printf("Warning: TLS certificates not provided, using insecure connection")
+		return nil, nil
+	}
 
-	// Load client cert
-	cert, e1 := tls.LoadX509KeyPair(cCert, cKey)
-	if e1 != nil {
-		return &tlsConfig, e1
+	// Load client certificate
+	cert, err := tls.LoadX509KeyPair(clientCert, clientKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load client certificate: %w", err)
 	}
 	tlsConfig.Certificates = []tls.Certificate{cert}
 
-	// Load CA cert
-	caCertR, e2 := ioutil.ReadFile(caCert)
-	if e2 != nil {
-		return &tlsConfig, e2
+	// Load CA certificate
+	caCertData, err := ioutil.ReadFile(caCert)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load CA certificate: %w", err)
 	}
+
+	// Create certificate pool and add CA certificate
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCertR)
+	if !caCertPool.AppendCertsFromPEM(caCertData) {
+		return nil, fmt.Errorf("failed to parse CA certificate")
+	}
 	tlsConfig.RootCAs = caCertPool
 
+	// Build name to certificate map
 	tlsConfig.BuildNameToCertificate()
-	return &tlsConfig, e2
+	return &tlsConfig, nil
 }
 
-// Connect creates the Kafka connection & both Reader and Writer stream objects
+// Connect establishes a connection to the Kafka server using the configuration in HPipeConfig.
 func (kp *KafkaPacket) Connect() error {
-	kp.Server = HPipeConfig.KServer + ":" + strconv.Itoa(HPipeConfig.KLport)
-	tls, e := TLS(HPipeConfig.KAFKACertFile, HPipeConfig.KAFKAKeyFile, HPipeConfig.KAFKACAFile)
-	if e != nil {
-		log.Printf("%v", e)
-		return e
+	// Build the Kafka server URL with port
+	kp.Server = fmt.Sprintf("%s:%d", HPipeConfig.KServer, HPipeConfig.KLport)
+
+	// Create TLS configuration if certificates are provided
+	tlsConfig, err := createTLSConfig(
+		HPipeConfig.KAFKACertFile,
+		HPipeConfig.KAFKAKeyFile,
+		HPipeConfig.KAFKACAFile,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create TLS configuration: %w", err)
 	}
+
+	// Get hostname for client ID
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown-host"
+	}
+
+	// Create Kafka dialer
 	kp.DialerConn = &kafka.Dialer{
-		Timeout:   10 * time.Second,
+		Timeout:   time.Duration(HPipeConfig.KTimeout) * time.Second,
 		DualStack: true,
-		TLS:       tls,
+		TLS:       tlsConfig,
+		ClientID:  fmt.Sprintf("hybridpipe-%s-%d", hostname, os.Getpid()),
 	}
+
+	// Initialize maps
+	kp.mutex.Lock()
+	defer kp.mutex.Unlock()
+
 	if kp.Readers == nil {
 		kp.Readers = make(map[string]*kafka.Reader)
 	}
 	if kp.Writers == nil {
 		kp.Writers = make(map[string]*kafka.Writer)
 	}
+	if kp.readerCancel == nil {
+		kp.readerCancel = make(map[string]context.CancelFunc)
+	}
+
+	log.Printf("Connected to Kafka server at %s", kp.Server)
 	return nil
 }
 
-// Dispatch defines the Producer / Publisher role and functionality.
-func (kp *KafkaPacket) Dispatch(pipe string, d interface{}) error {
+// Dispatch publishes a message to the specified pipe.
+func (kp *KafkaPacket) Dispatch(pipe string, data interface{}) error {
+	// Validate connection
+	if kp.DialerConn == nil {
+		return fmt.Errorf("not connected to Kafka server")
+	}
 
-	if _, a := kp.Writers[pipe]; a == false {
-		kp.Writers[pipe] = kafka.NewWriter(kafka.WriterConfig{
+	// Get or create writer for the pipe
+	kp.mutex.Lock()
+	writer, exists := kp.Writers[pipe]
+	if !exists {
+		writer = kafka.NewWriter(kafka.WriterConfig{
 			Brokers:       []string{kp.Server},
 			Topic:         pipe,
 			Balancer:      &kafka.LeastBytes{},
 			BatchSize:     1,
-			QueueCapacity: 1,
+			QueueCapacity: 10,
 			Async:         true,
 			Dialer:        kp.DialerConn,
+			// Ensure at least one broker acknowledges the message
+			// Note: RequiredAcks is an int in older versions of kafka-go
+			RequiredAcks: 1,
 		})
+		kp.Writers[pipe] = writer
 	}
-	b, e := Encode(d)
-	if e != nil {
-		log.Printf("%v", e)
-		return e
+	kp.mutex.Unlock()
+
+	// Encode the data
+	bytes, err := Encode(data)
+	if err != nil {
+		return fmt.Errorf("failed to encode message: %w", err)
 	}
-	km := kafka.Message{
+
+	// Create Kafka message
+	message := kafka.Message{
 		Key:   []byte(pipe),
-		Value: b,
+		Value: bytes,
+		Time:  time.Now(),
 	}
-	if e = kp.Writers[pipe].WriteMessages(context.Background(), km); e != nil {
-		log.Printf("%v", e)
-		return e
+
+	// Write message to Kafka
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(HPipeConfig.KTimeout)*time.Second)
+	defer cancel()
+
+	if err = writer.WriteMessages(ctx, message); err != nil {
+		return fmt.Errorf("failed to write message to pipe %s: %w", pipe, err)
 	}
+
 	return nil
 }
 
-// Accept function defines the Consumer or Subscriber functionality for KAFKA.
+// Accept subscribes to messages from the specified pipe and processes them with the provided function.
 func (kp *KafkaPacket) Accept(pipe string, fn Process) error {
-
-	if _, a := kp.Readers[pipe]; a == false {
-		kp.Readers[pipe] = kafka.NewReader(kafka.ReaderConfig{
-			Brokers:        []string{kp.Server},
-			GroupID:        pipe,
-			Topic:          pipe,
-			MinBytes:       10e1,
-			MaxBytes:       10e6,
-			CommitInterval: 1 * time.Second,
-			Dialer:         kp.DialerConn,
-		})
+	// Validate connection
+	if kp.DialerConn == nil {
+		return fmt.Errorf("not connected to Kafka server")
 	}
-	go kp.Read(pipe, fn)
+
+	// Check if already subscribed
+	kp.mutex.Lock()
+	defer kp.mutex.Unlock()
+
+	// Cancel existing reader if any
+	if cancel, exists := kp.readerCancel[pipe]; exists {
+		cancel()
+		delete(kp.readerCancel, pipe)
+	}
+
+	// Create a new reader for the pipe
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:        []string{kp.Server},
+		GroupID:        fmt.Sprintf("%s-%d", pipe, os.Getpid()), // Unique group ID for this process
+		Topic:          pipe,
+		MinBytes:       10e1, // 100 bytes
+		MaxBytes:       10e6, // 10MB
+		CommitInterval: 1 * time.Second,
+		Dialer:         kp.DialerConn,
+		StartOffset:    kafka.LastOffset, // Start reading from the latest message
+	})
+
+	// Store the reader
+	kp.Readers[pipe] = reader
+
+	// Create a context with cancel function for the reader goroutine
+	ctx, cancel := context.WithCancel(context.Background())
+	kp.readerCancel[pipe] = cancel
+
+	// Start reading messages in a goroutine
+	go kp.readMessages(ctx, pipe, reader, fn)
+
+	log.Printf("Subscribed to Kafka pipe %s", pipe)
 	return nil
 }
 
-// Read would access the KAFKA messages in a infinite loop.
-func (kp *KafkaPacket) Read(p string, fn Process) error {
+// readMessages reads messages from Kafka in a loop until the context is canceled.
+func (kp *KafkaPacket) readMessages(ctx context.Context, pipe string, reader *kafka.Reader, fn Process) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in Kafka reader for pipe %s: %v", pipe, r)
+		}
+	}()
 
-	var d interface{}
-	c := context.Background()
 	for {
-		m, e := kp.Readers[p].ReadMessage(c)
-		if e != nil {
-			log.Printf("%v", e)
-			return e
+		select {
+		case <-ctx.Done():
+			log.Printf("Stopping Kafka reader for pipe %s", pipe)
+			return
+		default:
+			// Read message with timeout
+			readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			message, err := reader.ReadMessage(readCtx)
+			cancel()
+
+			if err != nil {
+				// Check if context was canceled
+				if ctx.Err() != nil {
+					return
+				}
+
+				// Log other errors but continue
+				if err != context.DeadlineExceeded {
+					log.Printf("Error reading from Kafka pipe %s: %v", pipe, err)
+				}
+				continue
+			}
+
+			// Decode the message
+			var data interface{}
+			if err := Decode(message.Value, &data); err != nil {
+				log.Printf("Failed to decode message from pipe %s: %v", pipe, err)
+				continue
+			}
+
+			// Process the message
+			fn(data)
 		}
-		if e = Decode(m.Value, &d); e != nil {
-			return e
-		}
-		fn(d)
 	}
 }
 
-// Remove will just remove the existing subscription.
+// Remove unsubscribes from the specified pipe.
 func (kp *KafkaPacket) Remove(pipe string) error {
-	es, ok := kp.Readers[pipe]
-	if ok == false {
-		e := fmt.Errorf("specified pipe is not subscribed yet. please check the pipe name passed")
-		return e
+	// Validate connection
+	if kp.DialerConn == nil {
+		return fmt.Errorf("not connected to Kafka server")
 	}
-	es.Close()
+
+	// Lock for thread safety
+	kp.mutex.Lock()
+	defer kp.mutex.Unlock()
+
+	// Check if the pipe is subscribed
+	reader, exists := kp.Readers[pipe]
+	if !exists {
+		return fmt.Errorf("pipe %s is not subscribed", pipe)
+	}
+
+	// Cancel the reader goroutine
+	if cancel, exists := kp.readerCancel[pipe]; exists {
+		cancel()
+		delete(kp.readerCancel, pipe)
+	}
+
+	// Close the reader
+	if err := reader.Close(); err != nil {
+		return fmt.Errorf("failed to close reader for pipe %s: %w", pipe, err)
+	}
+
+	// Remove the reader from the map
 	delete(kp.Readers, pipe)
+
+	log.Printf("Unsubscribed from Kafka pipe %s", pipe)
 	return nil
 }
 
-// Close will disconnect KAFKA Connection.
+// Close terminates all connections to the Kafka server.
 func (kp *KafkaPacket) Close() {
+	// Check if connected
+	if kp.DialerConn == nil {
+		return
+	}
 
-	for rp, rc := range kp.Readers {
-		rc.Close()
-		delete(kp.Readers, rp)
+	// Lock for thread safety
+	kp.mutex.Lock()
+	defer kp.mutex.Unlock()
+
+	// Cancel all reader goroutines
+	for pipe, cancel := range kp.readerCancel {
+		cancel()
+		log.Printf("Canceled reader for pipe %s", pipe)
 	}
-	for wp, wc := range kp.Writers {
-		wc.Close()
-		delete(kp.Writers, wp)
+	kp.readerCancel = make(map[string]context.CancelFunc)
+
+	// Close all readers
+	for pipe, reader := range kp.Readers {
+		if err := reader.Close(); err != nil {
+			log.Printf("Error closing reader for pipe %s: %v", pipe, err)
+		}
 	}
+	kp.Readers = make(map[string]*kafka.Reader)
+
+	// Close all writers
+	for pipe, writer := range kp.Writers {
+		if err := writer.Close(); err != nil {
+			log.Printf("Error closing writer for pipe %s: %v", pipe, err)
+		}
+	}
+	kp.Writers = make(map[string]*kafka.Writer)
+
+	log.Printf("Closed all Kafka connections")
 }
