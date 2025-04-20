@@ -1,16 +1,19 @@
 package main
 
-// Just testing AMQP for now
-
 import (
 	"fmt"
+	"log"
+	"os"
+	"os/signal"
 	"runtime"
 	"sync"
+	"syscall"
+	"time"
 
 	dc "hybridpipe.io"
 )
 
-// Person struct
+// Person struct for serialization testing
 type Person struct {
 	Name    string
 	Age     int
@@ -19,34 +22,165 @@ type Person struct {
 	Next    *Person
 }
 
-var i, ni int
+// Message counters for each protocol
+var (
+	amqpCount  int
+	natsCount  int
+	kafkaCount int
+	mqttCount  int
+	qpidCount  int
+	rmqCount   int
+	mutex      sync.Mutex
+)
 
-// AMQPHandler function
-func AMQPHandler(am interface{}) {
-	fmt.Println(i, " - Message Sent via AMQP: ", am)
-	i++
+// AMQPHandler processes messages received via AMQP
+func AMQPHandler(data interface{}) {
+	mutex.Lock()
+	amqpCount++
+	count := amqpCount
+	mutex.Unlock()
+	fmt.Printf("[AMQP] Message #%d: %v\n", count, data)
 }
 
-// NATSHandler function
-func NATSHandler(nm interface{}) {
-	fmt.Println(ni, "Message sent via NATS: ", nm)
-	ni++
+// NATSHandler processes messages received via NATS
+func NATSHandler(data interface{}) {
+	mutex.Lock()
+	natsCount++
+	count := natsCount
+	mutex.Unlock()
+	fmt.Printf("[NATS] Message #%d: %v\n", count, data)
 }
 
-func consume(w *sync.WaitGroup) {
-	defer w.Done()
+// KafkaHandler processes messages received via Kafka
+func KafkaHandler(data interface{}) {
+	mutex.Lock()
+	kafkaCount++
+	count := kafkaCount
+	mutex.Unlock()
+	fmt.Printf("[Kafka] Message #%d: %v\n", count, data)
+}
+
+// MQTTHandler processes messages received via MQTT
+func MQTTHandler(data interface{}) {
+	mutex.Lock()
+	mqttCount++
+	count := mqttCount
+	mutex.Unlock()
+	fmt.Printf("[MQTT] Message #%d: %v\n", count, data)
+}
+
+// QpidHandler processes messages received via Qpid
+func QpidHandler(data interface{}) {
+	mutex.Lock()
+	qpidCount++
+	count := qpidCount
+	mutex.Unlock()
+	fmt.Printf("[Qpid] Message #%d: %v\n", count, data)
+}
+
+// RabbitMQHandler processes messages received via RabbitMQ
+func RabbitMQHandler(data interface{}) {
+	mutex.Lock()
+	rmqCount++
+	count := rmqCount
+	mutex.Unlock()
+	fmt.Printf("[RabbitMQ] Message #%d: %v\n", count, data)
+}
+
+// setupConsumer sets up message consumers for all supported protocols
+func setupConsumer(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	// Enable serialization for Person struct
 	dc.Enable(Person{})
-	A, _ := dc.DeployRouter(dc.AMQP1)
-	N, _ := dc.DeployRouter(dc.NATS)
-	A.Accept("ServerOI", AMQPHandler)
-	N.Accept("ServerIO", NATSHandler)
+
+	// Deploy routers for all supported protocols
+	routers := make(map[string]dc.HybridPipe)
+	protocols := []struct {
+		name     string
+		protocol int
+		handler  dc.Process
+		topic    string
+	}{
+		{"AMQP", dc.AMQP1, AMQPHandler, "hybridpipe.test.amqp"},
+		{"NATS", dc.NATS, NATSHandler, "hybridpipe.test.nats"},
+		{"Kafka", dc.KAFKA, KafkaHandler, "hybridpipe.test.kafka"},
+		{"MQTT", dc.MQTT, MQTTHandler, "hybridpipe.test.mqtt"},
+		{"Qpid", dc.QPID, QpidHandler, "hybridpipe.test.qpid"},
+		{"RabbitMQ", dc.RABBITMQ, RabbitMQHandler, "hybridpipe.test.rabbitmq"},
+	}
+
+	// Connect to each protocol and subscribe to topics
+	for _, p := range protocols {
+		log.Printf("Setting up consumer for %s protocol\n", p.name)
+
+		router, err := dc.DeployRouter(p.protocol)
+		if err != nil {
+			log.Printf("Error deploying router for %s: %v\n", p.name, err)
+			continue
+		}
+
+		// Store router for cleanup
+		routers[p.name] = router
+
+		// Subscribe to topic
+		err = router.Accept(p.topic, p.handler)
+		if err != nil {
+			log.Printf("Error subscribing to topic for %s: %v\n", p.name, err)
+			continue
+		}
+
+		log.Printf("Successfully subscribed to %s topic: %s\n", p.name, p.topic)
+	}
+
+	// Set up signal handling for graceful shutdown
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// Wait for termination signal
+	<-sigCh
+	log.Println("Shutdown signal received, closing connections...")
+
+	// Close all connections
+	for name, router := range routers {
+		log.Printf("Closing %s connection\n", name)
+		router.Close()
+	}
+
+	// Print final message counts
+	log.Printf("Final message counts:\n")
+	log.Printf("AMQP: %d\n", amqpCount)
+	log.Printf("NATS: %d\n", natsCount)
+	log.Printf("Kafka: %d\n", kafkaCount)
+	log.Printf("MQTT: %d\n", mqttCount)
+	log.Printf("Qpid: %d\n", qpidCount)
+	log.Printf("RabbitMQ: %d\n", rmqCount)
 }
 
 func main() {
+	// Configure logging
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
+	log.Println("Starting HybridPipe consumer test")
 
-	var w sync.WaitGroup
-	w.Add(1)
-	go consume(&w)
+	// Start consumer in a goroutine
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go setupConsumer(&wg)
+
+	// Print status every 5 seconds
+	ticker := time.NewTicker(5 * time.Second)
+	go func() {
+		for range ticker.C {
+			mutex.Lock()
+			log.Printf("Current message counts - AMQP: %d, NATS: %d, Kafka: %d, MQTT: %d, Qpid: %d, RabbitMQ: %d\n",
+				amqpCount, natsCount, kafkaCount, mqttCount, qpidCount, rmqCount)
+			mutex.Unlock()
+		}
+	}()
+
+	// Wait for goroutines to complete
 	runtime.Goexit()
-	w.Wait()
+	wg.Wait()
+	ticker.Stop()
+	log.Println("HybridPipe consumer test completed")
 }
