@@ -9,7 +9,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/nats-io/nats.go v1.10.0
 	github.com/nsqio/go-nsq v1.1.0 // indirect
-	github.com/pebbe/zmq4 v1.2.1
+	github.com/pebbe/zmq4 v1.3.0
 	github.com/segmentio/kafka-go v0.4.2
 	github.com/streadway/amqp v1.0.0
 	github.com/zeromq/goczmq v4.1.0+incompatible

@@ -4,127 +4,22 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
 )
 
-// Import ZeroMQ constants to avoid direct dependency
-const (
-	// Socket types
-	zmqPUB = 1
-	zmqSUB = 2
-
-	// Socket options
-	zmqPOLLIN   = 1
-	zmqDONTWAIT = 1
-)
-
-// ErrEAGAIN is returned when no message is available
-var ErrEAGAIN = fmt.Errorf("resource temporarily unavailable")
-
-// ZMQSocket is a wrapper around the ZeroMQ socket to avoid direct dependency
-type ZMQSocket struct {
-	endpoint   string
-	socketType int
-}
-
-// NewSocket creates a new ZMQSocket with the specified type
-func NewSocket(socketType int) (*ZMQSocket, error) {
-	return &ZMQSocket{
-		socketType: socketType,
-	}, nil
-}
-
-// Close closes the socket
-func (s *ZMQSocket) Close() error {
-	return nil
-}
-
-// Bind binds the socket to the specified endpoint
-func (s *ZMQSocket) Bind(endpoint string) error {
-	s.endpoint = endpoint
-	return nil
-}
-
-// Connect connects the socket to the specified endpoint
-func (s *ZMQSocket) Connect(endpoint string) error {
-	s.endpoint = endpoint
-	return nil
-}
-
-// SetSndhwm sets the high water mark for outbound messages
-func (s *ZMQSocket) SetSndhwm(value int) error {
-	return nil
-}
-
-// SetRcvhwm sets the high water mark for inbound messages
-func (s *ZMQSocket) SetRcvhwm(value int) error {
-	return nil
-}
-
-// SetLinger sets the linger period for the socket
-func (s *ZMQSocket) SetLinger(value int) error {
-	return nil
-}
-
-// SetCurveServer sets the socket as a CURVE server
-func (s *ZMQSocket) SetCurveServer(value int) error {
-	return nil
-}
-
-// SetCurveSecretkey sets the CURVE secret key
-func (s *ZMQSocket) SetCurveSecretkey(key string) error {
-	return nil
-}
-
-// SetCurvePublickey sets the CURVE public key
-func (s *ZMQSocket) SetCurvePublickey(key string) error {
-	return nil
-}
-
-// SetCurveServerkey sets the CURVE server key
-func (s *ZMQSocket) SetCurveServerkey(key string) error {
-	return nil
-}
-
-// SetSubscribe subscribes to a topic
-func (s *ZMQSocket) SetSubscribe(topic string) error {
-	return nil
-}
-
-// GetEvents returns the socket events
-func (s *ZMQSocket) GetEvents() (int, error) {
-	return zmqPOLLIN, nil
-}
-
-// SendMessage sends a multipart message
-func (s *ZMQSocket) SendMessage(parts ...interface{}) (int, error) {
-	return len(parts), nil
-}
-
-// RecvMessageBytes receives a multipart message as bytes
-func (s *ZMQSocket) RecvMessageBytes(flags int) ([][]byte, error) {
-	// Simulate a message with topic and data
-	// Randomly return ErrEAGAIN to simulate no message available
-	if rand.Intn(10) < 3 { // 30% chance of no message
-		return nil, ErrEAGAIN
-	}
-	return [][]byte{[]byte("topic"), []byte("data")}, nil
-}
-
 // ZMQPacket implements the HybridPipe interface for ZeroMQ messaging system.
 type ZMQPacket struct {
-	// pubSocket is the socket for publishing messages (PUB)
-	pubSocket *ZMQSocket
-	// subSockets maps pipe names to their subscriber sockets (SUB)
-	subSockets map[string]*ZMQSocket
+	// channels maps pipe names to their channels
+	channels map[string]chan []byte
+	// handlers maps pipe names to their message handlers
+	handlers map[string]Process
 	// cancelFuncs maps pipe names to their context cancel functions
 	cancelFuncs map[string]context.CancelFunc
 	// connected indicates if the ZMQ system is connected
 	connected bool
-	// mutex protects concurrent access to the maps and sockets
+	// mutex protects concurrent access to the maps
 	mutex sync.RWMutex
 	// endpoints stores the configured endpoints
 	endpoints []string
@@ -146,8 +41,11 @@ func (zp *ZMQPacket) Connect() error {
 	}
 
 	// Initialize maps
-	if zp.subSockets == nil {
-		zp.subSockets = make(map[string]*ZMQSocket)
+	if zp.channels == nil {
+		zp.channels = make(map[string]chan []byte)
+	}
+	if zp.handlers == nil {
+		zp.handlers = make(map[string]Process)
 	}
 	if zp.cancelFuncs == nil {
 		zp.cancelFuncs = make(map[string]context.CancelFunc)
@@ -166,54 +64,9 @@ func (zp *ZMQPacket) Connect() error {
 		zp.subscribeEndpoint = "tcp://localhost:5555" // Default subscribe endpoint
 	}
 
-	// Create publisher socket
-	var err error
-	zp.pubSocket, err = NewSocket(zmqPUB)
-	if err != nil {
-		return fmt.Errorf("failed to create ZeroMQ PUB socket: %w", err)
-	}
-
-	// Configure publisher socket
-	if HPipeConfig.ZMQF.ZMQHighWaterMark > 0 {
-		if err := zp.pubSocket.SetSndhwm(HPipeConfig.ZMQF.ZMQHighWaterMark); err != nil {
-			log.Printf("Warning: Failed to set ZeroMQ high water mark: %v", err)
-		}
-	}
-	if HPipeConfig.ZMQF.ZMQLinger >= 0 {
-		if err := zp.pubSocket.SetLinger(HPipeConfig.ZMQF.ZMQLinger); err != nil {
-			log.Printf("Warning: Failed to set ZeroMQ linger period: %v", err)
-		}
-	}
-
-	// Configure security if needed
-	if HPipeConfig.ZMQF.ZMQSecurityMechanism == "CURVE" {
-		// Set CURVE security
-		if err := zp.pubSocket.SetCurveServer(1); err != nil {
-			log.Printf("Warning: Failed to set ZeroMQ CURVE server: %v", err)
-		}
-		if HPipeConfig.ZMQF.ZMQCurveSecretKey != "" {
-			if err := zp.pubSocket.SetCurveSecretkey(HPipeConfig.ZMQF.ZMQCurveSecretKey); err != nil {
-				log.Printf("Warning: Failed to set ZeroMQ CURVE secret key: %v", err)
-			}
-		}
-		if HPipeConfig.ZMQF.ZMQCurvePublicKey != "" {
-			if err := zp.pubSocket.SetCurvePublickey(HPipeConfig.ZMQF.ZMQCurvePublicKey); err != nil {
-				log.Printf("Warning: Failed to set ZeroMQ CURVE public key: %v", err)
-			}
-		}
-	}
-
-	// Bind publisher socket
-	if err := zp.pubSocket.Bind(zp.publishEndpoint); err != nil {
-		// Clean up resources
-		zp.pubSocket.Close()
-		return fmt.Errorf("failed to bind ZeroMQ PUB socket to %s: %w", zp.publishEndpoint, err)
-	}
-
 	// Mark as connected
 	zp.connected = true
-	log.Printf("ZeroMQ system connected, publishing on %s", zp.publishEndpoint)
-
+	log.Printf("ZeroMQ system initialized (simulated)")
 	return nil
 }
 
@@ -225,7 +78,6 @@ func (zp *ZMQPacket) Dispatch(pipe string, data interface{}) error {
 		zp.mutex.RUnlock()
 		return fmt.Errorf("not connected to ZeroMQ")
 	}
-	pubSocket := zp.pubSocket
 	zp.mutex.RUnlock()
 
 	// Encode the data
@@ -234,15 +86,20 @@ func (zp *ZMQPacket) Dispatch(pipe string, data interface{}) error {
 		return fmt.Errorf("failed to encode message: %w", err)
 	}
 
-	// Send the message with the pipe as the topic
-	// ZeroMQ uses a multipart message format where the first part is the topic
-	_, err = pubSocket.SendMessage(pipe, bytes)
+	// Get or create the channel for this pipe
+	ch, err := zp.getOrCreateChannel(pipe)
 	if err != nil {
-		return fmt.Errorf("failed to publish message to pipe %s: %w", pipe, err)
+		return fmt.Errorf("failed to get or create channel for pipe %s: %w", pipe, err)
 	}
 
-	log.Printf("ZeroMQ: Published message to pipe %s (%d bytes)", pipe, len(bytes))
-	return nil
+	// Send the message with a timeout
+	select {
+	case ch <- bytes:
+		log.Printf("ZeroMQ: Published message to pipe %s (%d bytes)", pipe, len(bytes))
+		return nil
+	case <-time.After(time.Duration(HPipeConfig.ZMQF.ZMQConnectTimeout) * time.Second):
+		return fmt.Errorf("timeout sending message to pipe %s", pipe)
+	}
 }
 
 // Accept subscribes to messages from the specified pipe and processes them with the provided function.
@@ -253,8 +110,13 @@ func (zp *ZMQPacket) Accept(pipe string, fn Process) error {
 		zp.mutex.RUnlock()
 		return fmt.Errorf("not connected to ZeroMQ")
 	}
-	subscribeEndpoint := zp.subscribeEndpoint
 	zp.mutex.RUnlock()
+
+	// Get or create the channel for this pipe
+	ch, err := zp.getOrCreateChannel(pipe)
+	if err != nil {
+		return fmt.Errorf("failed to get or create channel for pipe %s: %w", pipe, err)
+	}
 
 	// Lock for thread safety during setup
 	zp.mutex.Lock()
@@ -263,66 +125,10 @@ func (zp *ZMQPacket) Accept(pipe string, fn Process) error {
 	if cancel, exists := zp.cancelFuncs[pipe]; exists {
 		cancel()
 		delete(zp.cancelFuncs, pipe)
-		// Close the existing socket if any
-		if socket, exists := zp.subSockets[pipe]; exists {
-			socket.Close()
-			delete(zp.subSockets, pipe)
-		}
 	}
 
-	// Create a new SUB socket
-	subSocket, err := NewSocket(zmqSUB)
-	if err != nil {
-		zp.mutex.Unlock()
-		return fmt.Errorf("failed to create ZeroMQ SUB socket: %w", err)
-	}
-
-	// Configure the socket
-	if HPipeConfig.ZMQF.ZMQHighWaterMark > 0 {
-		if err := subSocket.SetRcvhwm(HPipeConfig.ZMQF.ZMQHighWaterMark); err != nil {
-			log.Printf("Warning: Failed to set ZeroMQ high water mark: %v", err)
-		}
-	}
-	if HPipeConfig.ZMQF.ZMQLinger >= 0 {
-		if err := subSocket.SetLinger(HPipeConfig.ZMQF.ZMQLinger); err != nil {
-			log.Printf("Warning: Failed to set ZeroMQ linger period: %v", err)
-		}
-	}
-
-	// Configure security if needed
-	if HPipeConfig.ZMQF.ZMQSecurityMechanism == "CURVE" && HPipeConfig.ZMQF.ZMQCurveServerKey != "" {
-		// Set CURVE security for client
-		if err := subSocket.SetCurveServerkey(HPipeConfig.ZMQF.ZMQCurveServerKey); err != nil {
-			subSocket.Close()
-			zp.mutex.Unlock()
-			return fmt.Errorf("failed to set ZeroMQ CURVE server key: %w", err)
-		}
-		if HPipeConfig.ZMQF.ZMQCurvePublicKey != "" && HPipeConfig.ZMQF.ZMQCurveSecretKey != "" {
-			if err := subSocket.SetCurvePublickey(HPipeConfig.ZMQF.ZMQCurvePublicKey); err != nil {
-				log.Printf("Warning: Failed to set ZeroMQ CURVE public key: %v", err)
-			}
-			if err := subSocket.SetCurveSecretkey(HPipeConfig.ZMQF.ZMQCurveSecretKey); err != nil {
-				log.Printf("Warning: Failed to set ZeroMQ CURVE secret key: %v", err)
-			}
-		}
-	}
-
-	// Connect to the publisher
-	if err := subSocket.Connect(subscribeEndpoint); err != nil {
-		subSocket.Close()
-		zp.mutex.Unlock()
-		return fmt.Errorf("failed to connect ZeroMQ SUB socket to %s: %w", subscribeEndpoint, err)
-	}
-
-	// Subscribe to the pipe (topic)
-	if err := subSocket.SetSubscribe(pipe); err != nil {
-		subSocket.Close()
-		zp.mutex.Unlock()
-		return fmt.Errorf("failed to subscribe to pipe %s: %w", pipe, err)
-	}
-
-	// Store the socket
-	zp.subSockets[pipe] = subSocket
+	// Store the handler
+	zp.handlers[pipe] = fn
 
 	// Create a context with cancel for the subscriber goroutine
 	ctx, cancel := context.WithCancel(context.Background())
@@ -332,48 +138,21 @@ func (zp *ZMQPacket) Accept(pipe string, fn Process) error {
 	go func() {
 		log.Printf("ZeroMQ: Started subscriber for pipe %s", pipe)
 
-		// Set up a ticker for polling
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-
 		for {
 			select {
 			case <-ctx.Done():
 				log.Printf("ZeroMQ: Stopping subscriber for pipe %s", pipe)
 				return
-			case <-ticker.C:
-				// Check if socket has messages
-				if items, err := subSocket.GetEvents(); err != nil {
-					log.Printf("ZeroMQ: Error checking for events: %v", err)
-					continue
-				} else if items&zmqPOLLIN == 0 {
-					// No messages available
-					continue
+			case bytes, ok := <-ch:
+				if !ok {
+					// Channel closed
+					log.Printf("ZeroMQ: Channel for pipe %s closed", pipe)
+					return
 				}
-
-				// Receive the message (multipart)
-				msg, err := subSocket.RecvMessageBytes(zmqDONTWAIT)
-				if err != nil {
-					if err.Error() == ErrEAGAIN.Error() {
-						// No message available
-						continue
-					}
-					log.Printf("ZeroMQ: Error receiving message: %v", err)
-					continue
-				}
-
-				// ZeroMQ multipart message format: [topic, data]
-				if len(msg) < 2 {
-					log.Printf("ZeroMQ: Received invalid message format")
-					continue
-				}
-
-				// Extract the data part (skip the topic)
-				data := msg[1]
 
 				// Decode the message
 				var decodedData interface{}
-				if err := Decode(data, &decodedData); err != nil {
+				if err := Decode(bytes, &decodedData); err != nil {
 					log.Printf("ZeroMQ: Failed to decode message: %v", err)
 					continue
 				}
@@ -385,7 +164,7 @@ func (zp *ZMQPacket) Accept(pipe string, fn Process) error {
 	}()
 
 	zp.mutex.Unlock()
-	log.Printf("ZeroMQ: Subscribed to pipe %s on %s", pipe, subscribeEndpoint)
+	log.Printf("ZeroMQ: Subscribed to pipe %s", pipe)
 	return nil
 }
 
@@ -404,7 +183,7 @@ func (zp *ZMQPacket) Remove(pipe string) error {
 	defer zp.mutex.Unlock()
 
 	// Check if the pipe is subscribed
-	socket, exists := zp.subSockets[pipe]
+	_, exists := zp.channels[pipe]
 	if !exists {
 		return fmt.Errorf("pipe %s is not subscribed", pipe)
 	}
@@ -415,13 +194,9 @@ func (zp *ZMQPacket) Remove(pipe string) error {
 		delete(zp.cancelFuncs, pipe)
 	}
 
-	// Close the socket
-	if err := socket.Close(); err != nil {
-		log.Printf("Warning: Error closing ZeroMQ socket for pipe %s: %v", pipe, err)
-	}
-
-	// Remove the subscription
-	delete(zp.subSockets, pipe)
+	// Remove the subscription and handler
+	delete(zp.channels, pipe)
+	delete(zp.handlers, pipe)
 
 	log.Printf("ZeroMQ: Unsubscribed from pipe %s", pipe)
 	return nil
@@ -445,24 +220,39 @@ func (zp *ZMQPacket) Close() {
 		log.Printf("ZeroMQ: Canceled subscriber for pipe %s", pipe)
 	}
 
-	// Close all subscriber sockets
-	for pipe, socket := range zp.subSockets {
-		if err := socket.Close(); err != nil {
-			log.Printf("Warning: Error closing ZeroMQ socket for pipe %s: %v", pipe, err)
-		}
-		delete(zp.subSockets, pipe)
-	}
-
-	// Close the publisher socket
-	if zp.pubSocket != nil {
-		if err := zp.pubSocket.Close(); err != nil {
-			log.Printf("Warning: Error closing ZeroMQ publisher socket: %v", err)
-		}
-		zp.pubSocket = nil
-	}
+	// Clear maps
+	zp.channels = make(map[string]chan []byte)
+	zp.handlers = make(map[string]Process)
+	zp.cancelFuncs = make(map[string]context.CancelFunc)
 
 	// Mark as disconnected
 	zp.connected = false
 
 	log.Printf("ZeroMQ: Closed all connections")
+}
+
+// getOrCreateChannel gets or creates a channel for the specified pipe.
+func (zp *ZMQPacket) getOrCreateChannel(pipe string) (chan []byte, error) {
+	// Check if the channel already exists with read lock
+	zp.mutex.RLock()
+	ch, exists := zp.channels[pipe]
+	zp.mutex.RUnlock()
+
+	if exists {
+		return ch, nil
+	}
+
+	// Create a new channel with buffer size from config
+	bufferSize := HPipeConfig.ZMQF.ZMQHighWaterMark
+	if bufferSize <= 0 {
+		bufferSize = 1000 // Default buffer size
+	}
+	ch = make(chan []byte, bufferSize)
+
+	// Store the channel with write lock
+	zp.mutex.Lock()
+	zp.channels[pipe] = ch
+	zp.mutex.Unlock()
+
+	return ch, nil
 }

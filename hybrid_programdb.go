@@ -33,6 +33,7 @@ type HybridDB struct {
 	TCPF      `toml:"TCP"`
 	RedisF    `toml:"REDIS"`
 	ZMQF      `toml:"ZEROMQ"`
+	NetChanF  `toml:"NETCHAN"`
 	GeneralF  `toml:"GENERAL"`
 }
 
@@ -246,6 +247,18 @@ type ZMQF struct {
 	ZMQCurveSecretKey string `toml:"ZMQCurveSecretKey"`
 }
 
+// NetChanF contains NetChan specific configuration
+type NetChanF struct {
+	// NetChanServer is the server hostname or IP address
+	NetChanServer string `toml:"NetChanServer"`
+	// NetChanPort is the server port
+	NetChanPort int `toml:"NetChanPort"`
+	// NetChanBufferSize is the channel buffer size
+	NetChanBufferSize int `toml:"NetChanBufferSize"`
+	// NetChanTimeout is the timeout for operations in milliseconds
+	NetChanTimeout int `toml:"NetChanTimeout"`
+}
+
 // GeneralF contains general configuration options
 type GeneralF struct {
 	// DBPath is the path to the database location
@@ -324,6 +337,20 @@ func processConfig() {
 	HPipeConfig.ZMQF.ZMQCurvePublicKey = expandEnvPath(HPipeConfig.ZMQF.ZMQCurvePublicKey)
 	HPipeConfig.ZMQF.ZMQCurveSecretKey = expandEnvPath(HPipeConfig.ZMQF.ZMQCurveSecretKey)
 	HPipeConfig.GeneralF.DBPath = expandEnvPath(HPipeConfig.GeneralF.DBPath)
+
+	// Set default values for NetChan if not specified
+	if HPipeConfig.NetChanF.NetChanServer == "" {
+		HPipeConfig.NetChanF.NetChanServer = "localhost"
+	}
+	if HPipeConfig.NetChanF.NetChanPort == 0 {
+		HPipeConfig.NetChanF.NetChanPort = 8080
+	}
+	if HPipeConfig.NetChanF.NetChanBufferSize == 0 {
+		HPipeConfig.NetChanF.NetChanBufferSize = 10
+	}
+	if HPipeConfig.NetChanF.NetChanTimeout == 0 {
+		HPipeConfig.NetChanF.NetChanTimeout = 5000 // 5 seconds
+	}
 }
 
 // expandEnvPath expands environment variables in a file path

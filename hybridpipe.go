@@ -34,6 +34,8 @@ const (
 	TCP
 	// REDIS - https://redis.io/
 	REDIS
+	// NETCHAN - Go channels over network
+	NETCHAN
 	// MOCK - In-memory mock implementation for testing
 	MOCK
 )
@@ -60,6 +62,7 @@ func init() {
 	RoutersMap[NSQ] = reflect.TypeOf((*NSQPacket)(nil)).Elem()
 	RoutersMap[TCP] = reflect.TypeOf((*TCPPacket)(nil)).Elem()
 	RoutersMap[REDIS] = reflect.TypeOf((*RedisPacket)(nil)).Elem()
+	RoutersMap[NETCHAN] = reflect.TypeOf((*NetChanPacket)(nil)).Elem()
 	RoutersMap[MOCK] = reflect.TypeOf((*MockPacket)(nil)).Elem()
 }
 
