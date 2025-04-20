@@ -33,6 +33,7 @@ var (
 	nsqCount   int
 	tcpCount   int
 	redisCount int
+	mockCount  int
 	mutex      sync.Mutex
 )
 
@@ -117,6 +118,15 @@ func RedisHandler(data interface{}) {
 	fmt.Printf("[Redis] Message #%d: %v\n", count, data)
 }
 
+// MockHandler processes messages received via the mock implementation
+func MockHandler(data interface{}) {
+	mutex.Lock()
+	mockCount++
+	count := mockCount
+	mutex.Unlock()
+	fmt.Printf("[Mock] Message #%d: %v\n", count, data)
+}
+
 // setupConsumer sets up message consumers for all supported protocols
 func setupConsumer(wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -141,6 +151,7 @@ func setupConsumer(wg *sync.WaitGroup) {
 		{"NSQ", dc.NSQ, NSQHandler, "hybridpipe.test.nsq"},
 		{"TCP", dc.TCP, TCPHandler, "hybridpipe.test.tcp"},
 		{"Redis", dc.REDIS, RedisHandler, "hybridpipe.test.redis"},
+		{"Mock", dc.MOCK, MockHandler, "hybridpipe.test.mock"},
 	}
 
 	// Connect to each protocol and subscribe to topics
@@ -191,6 +202,7 @@ func setupConsumer(wg *sync.WaitGroup) {
 	log.Printf("NSQ: %d\n", nsqCount)
 	log.Printf("TCP: %d\n", tcpCount)
 	log.Printf("Redis: %d\n", redisCount)
+	log.Printf("Mock: %d\n", mockCount)
 }
 
 func main() {
@@ -208,8 +220,8 @@ func main() {
 	go func() {
 		for range ticker.C {
 			mutex.Lock()
-			log.Printf("Current message counts - AMQP: %d, NATS: %d, Kafka: %d, MQTT: %d, Qpid: %d, RabbitMQ: %d, NSQ: %d, TCP: %d, Redis: %d\n",
-				amqpCount, natsCount, kafkaCount, mqttCount, qpidCount, rmqCount, nsqCount, tcpCount, redisCount)
+			log.Printf("Current message counts - AMQP: %d, NATS: %d, Kafka: %d, MQTT: %d, Qpid: %d, RabbitMQ: %d, NSQ: %d, TCP: %d, Redis: %d, Mock: %d\n",
+				amqpCount, natsCount, kafkaCount, mqttCount, qpidCount, rmqCount, nsqCount, tcpCount, redisCount, mockCount)
 			mutex.Unlock()
 		}
 	}()
