@@ -29,6 +29,9 @@ type HybridDB struct {
 	AMQPF     `toml:"AMQP1"`
 	QpidF     `toml:"QPID"`
 	MQTTF     `toml:"MQTT"`
+	NSQF      `toml:"NSQ"`
+	TCPF      `toml:"TCP"`
+	RedisF    `toml:"REDIS"`
 	GeneralF  `toml:"GENERAL"`
 }
 
@@ -134,6 +137,86 @@ type MQTTF struct {
 	MQTTConnectTimeout int `toml:"MQTTConnectTimeout"`
 }
 
+// NSQF contains NSQ specific configuration
+type NSQF struct {
+	// NSQLookupdAddresses is a comma-separated list of nsqlookupd addresses
+	NSQLookupdAddresses string `toml:"NSQLookupdAddresses"`
+	// NSQDAddress is the address of the nsqd instance
+	NSQDAddress string `toml:"NSQDAddress"`
+	// NSQDPort is the port of the nsqd instance
+	NSQDPort int `toml:"NSQDPort"`
+	// NSQClientID is the client ID for the NSQ connection
+	NSQClientID string `toml:"NSQClientID"`
+	// NSQAuthSecret is the secret for authentication
+	NSQAuthSecret string `toml:"NSQAuthSecret"`
+	// NSQMaxInFlight is the maximum number of messages to process at once
+	NSQMaxInFlight int `toml:"NSQMaxInFlight"`
+	// NSQMaxAttempts is the maximum number of attempts to process a message
+	NSQMaxAttempts int `toml:"NSQMaxAttempts"`
+	// NSQRequeueDelay is the delay before requeuing a failed message (in seconds)
+	NSQRequeueDelay int `toml:"NSQRequeueDelay"`
+	// NSQConnectTimeout is the connection timeout in seconds
+	NSQConnectTimeout int `toml:"NSQConnectTimeout"`
+}
+
+// TCPF contains TCP specific configuration
+type TCPF struct {
+	// TCPHost is the host to connect to or listen on
+	TCPHost string `toml:"TCPHost"`
+	// TCPPort is the port to connect to or listen on
+	TCPPort int `toml:"TCPPort"`
+	// TCPMode can be "server" or "client"
+	TCPMode string `toml:"TCPMode"`
+	// TCPBufferSize is the size of the read/write buffer
+	TCPBufferSize int `toml:"TCPBufferSize"`
+	// TCPKeepAlive enables TCP keep-alive
+	TCPKeepAlive bool `toml:"TCPKeepAlive"`
+	// TCPKeepAlivePeriod is the keep-alive period in seconds
+	TCPKeepAlivePeriod int `toml:"TCPKeepAlivePeriod"`
+	// TCPConnectTimeout is the connection timeout in seconds
+	TCPConnectTimeout int `toml:"TCPConnectTimeout"`
+	// TCPTLSEnabled enables TLS for the connection
+	TCPTLSEnabled bool `toml:"TCPTLSEnabled"`
+	// TCPCertFile is the path to the client/server certificate file
+	TCPCertFile string `toml:"TCPCertFile"`
+	// TCPKeyFile is the path to the client/server key file
+	TCPKeyFile string `toml:"TCPKeyFile"`
+	// TCPCAFile is the path to the CA certificate file
+	TCPCAFile string `toml:"TCPCAFile"`
+}
+
+// RedisF contains Redis specific configuration
+type RedisF struct {
+	// RedisAddress is the Redis server address
+	RedisAddress string `toml:"RedisAddress"`
+	// RedisPort is the Redis server port
+	RedisPort int `toml:"RedisPort"`
+	// RedisPassword is the password for authentication
+	RedisPassword string `toml:"RedisPassword"`
+	// RedisDB is the Redis database number
+	RedisDB int `toml:"RedisDB"`
+	// RedisUsername is the username for Redis 6+ ACL authentication
+	RedisUsername string `toml:"RedisUsername"`
+	// RedisPoolSize is the maximum number of connections in the pool
+	RedisPoolSize int `toml:"RedisPoolSize"`
+	// RedisMinIdleConns is the minimum number of idle connections in the pool
+	RedisMinIdleConns int `toml:"RedisMinIdleConns"`
+	// RedisConnectTimeout is the connection timeout in seconds
+	RedisConnectTimeout int `toml:"RedisConnectTimeout"`
+	// RedisReadTimeout is the read timeout in seconds
+	RedisReadTimeout int `toml:"RedisReadTimeout"`
+	// RedisWriteTimeout is the write timeout in seconds
+	RedisWriteTimeout int `toml:"RedisWriteTimeout"`
+	// RedisTLSEnabled enables TLS for the connection
+	RedisTLSEnabled bool `toml:"RedisTLSEnabled"`
+	// RedisCertFile is the path to the client certificate file
+	RedisCertFile string `toml:"RedisCertFile"`
+	// RedisKeyFile is the path to the client key file
+	RedisKeyFile string `toml:"RedisKeyFile"`
+	// RedisCAFile is the path to the CA certificate file
+	RedisCAFile string `toml:"RedisCAFile"`
+}
+
 // GeneralF contains general configuration options
 type GeneralF struct {
 	// DBPath is the path to the database location
@@ -202,6 +285,12 @@ func processConfig() {
 	HPipeConfig.MQTTF.MQTTCertFile = expandEnvPath(HPipeConfig.MQTTF.MQTTCertFile)
 	HPipeConfig.MQTTF.MQTTKeyFile = expandEnvPath(HPipeConfig.MQTTF.MQTTKeyFile)
 	HPipeConfig.MQTTF.MQTTCAFile = expandEnvPath(HPipeConfig.MQTTF.MQTTCAFile)
+	HPipeConfig.TCPF.TCPCertFile = expandEnvPath(HPipeConfig.TCPF.TCPCertFile)
+	HPipeConfig.TCPF.TCPKeyFile = expandEnvPath(HPipeConfig.TCPF.TCPKeyFile)
+	HPipeConfig.TCPF.TCPCAFile = expandEnvPath(HPipeConfig.TCPF.TCPCAFile)
+	HPipeConfig.RedisF.RedisCertFile = expandEnvPath(HPipeConfig.RedisF.RedisCertFile)
+	HPipeConfig.RedisF.RedisKeyFile = expandEnvPath(HPipeConfig.RedisF.RedisKeyFile)
+	HPipeConfig.RedisF.RedisCAFile = expandEnvPath(HPipeConfig.RedisF.RedisCAFile)
 	HPipeConfig.GeneralF.DBPath = expandEnvPath(HPipeConfig.GeneralF.DBPath)
 }
 

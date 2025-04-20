@@ -52,5 +52,45 @@ MQTTKeyFile = "/path/to/mqtt-client.key"
 MQTTCAFile = "/path/to/mqtt-ca.pem"
 MQTTConnectTimeout = 10
 
+[NSQ]
+NSQLookupdAddresses = "localhost:4161"
+NSQDAddress = "localhost"
+NSQDPort = 4150
+NSQClientID = "hybridpipe-client"
+NSQAuthSecret = ""
+NSQMaxInFlight = 100
+NSQMaxAttempts = 5
+NSQRequeueDelay = 10
+NSQConnectTimeout = 10
+
+[TCP]
+TCPHost = "localhost"
+TCPPort = 9000
+TCPMode = "client"
+TCPBufferSize = 4096
+TCPKeepAlive = true
+TCPKeepAlivePeriod = 30
+TCPConnectTimeout = 10
+TCPTLSEnabled = false
+TCPCertFile = "/path/to/tcp-client.pem"
+TCPKeyFile = "/path/to/tcp-client.key"
+TCPCAFile = "/path/to/tcp-ca.pem"
+
+[REDIS]
+RedisAddress = "localhost"
+RedisPort = 6379
+RedisPassword = ""
+RedisDB = 0
+RedisUsername = ""
+RedisPoolSize = 10
+RedisMinIdleConns = 2
+RedisConnectTimeout = 10
+RedisReadTimeout = 5
+RedisWriteTimeout = 5
+RedisTLSEnabled = false
+RedisCertFile = "/path/to/redis-client.pem"
+RedisKeyFile = "/path/to/redis-client.key"
+RedisCAFile = "/path/to/redis-ca.pem"
+
 [GENERAL]
 DBLocation     = "/Users/anands/go/config"

@@ -57,9 +57,10 @@ HybridPipe provides a unified messaging interface for various message brokers an
 | [AMQP 1.0](https://www.amqp.org) | ✅ Full | Advanced Message Queuing Protocol |
 | [Apache Qpid](https://qpid.apache.org/) | ✅ Full | Enterprise messaging system |
 | [MQTT](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html) | ✅ Full | IoT connectivity protocol |
+| [NSQ](https://nsq.io/) | ✅ Full | Realtime distributed messaging platform |
+| [Redis](https://redis.io/) | ✅ Full | In-memory data structure store |
+| [TCP/IP](https://en.wikipedia.org/wiki/Internet_protocol_suite) | ✅ Full | Direct TCP socket communication |
 | [ZeroMQ](https://zeromq.org/) | 🔄 Partial | Distributed messaging library |
-| [NSQ](https://nsq.io/) | 📅 Planned | Realtime distributed messaging platform |
-| TCP/Redis | 📅 Planned | Direct TCP and Redis-based messaging |
 
 ## 📦 Installation
 
@@ -233,7 +234,7 @@ select {}
 #### Using Multiple Messaging Systems Simultaneously
 
 ```go
-// Connect to Kafka, NATS, Qpid, and MQTT
+// Connect to multiple messaging systems
 kafkaConn, _ := hp.DeployRouter(hp.KAFKA)
 defer kafkaConn.Close()
 
@@ -246,13 +247,25 @@ defer qpidConn.Close()
 mqttConn, _ := hp.DeployRouter(hp.MQTT)
 defer mqttConn.Close()
 
-// Send the same message via all four systems
+nsqConn, _ := hp.DeployRouter(hp.NSQ)
+defer nsqConn.Close()
+
+redisConn, _ := hp.DeployRouter(hp.REDIS)
+defer redisConn.Close()
+
+tcpConn, _ := hp.DeployRouter(hp.TCP)
+defer tcpConn.Close()
+
+// Send the same message via all systems
 data := map[string]string{"status": "active", "message": "System online"}
 
 kafkaConn.Dispatch("app.status", data)
 natsConn.Dispatch("app.status", data)
 qpidConn.Dispatch("app.status", data)
 mqttConn.Dispatch("app.status", data)
+nsqConn.Dispatch("app.status", data)
+redisConn.Dispatch("app.status", data)
+tcpConn.Dispatch("app.status", data)
 ```
 
 ## 🔒 Security
@@ -320,6 +333,9 @@ const (
     AMQP1
     MQTT
     QPID
+    NSQ
+    TCP
+    REDIS
 )
 ```
 
@@ -343,9 +359,8 @@ HybridPipe uses a pluggable architecture with the following components:
 
 ## 📊 Implementation Status
 
-- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT
+- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis
 - **Partially Implemented**: ZeroMQ (structure ready)
-- **Planned**: NSQ, TCP, Redis
 
 An embedded system deployable version of HybridPipe is under development in Rust.
 
@@ -353,6 +368,9 @@ An embedded system deployable version of HybridPipe is under development in Rust
 
 ### New Protocol Implementations (June 2023)
 
+- **NSQ Support**: Added full implementation of NSQ protocol using go-nsq client
+- **TCP/IP Support**: Added direct TCP/IP communication with both client and server modes
+- **Redis Support**: Added Redis pub/sub implementation using go-redis client
 - **MQTT Support**: Added full implementation of MQTT protocol using Eclipse Paho MQTT client
 - **Apache Qpid Support**: Added full implementation of Apache Qpid protocol
 - **Thread Safety**: Improved mutex protection across all protocol implementations
