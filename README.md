@@ -6,11 +6,11 @@
 
 **A unified messaging interface for microservices and distributed systems**
 
-[![Go Reference](https://pkg.go.dev/badge/hybridpipe.io.svg)](https://pkg.go.dev/hybridpipe.io)
-[![Go Report Card](https://goreportcard.com/badge/hybridpipe.io)](https://goreportcard.com/report/hybridpipe.io)
+[![Go Reference](https://pkg.go.dev/badge/github.com/AnandSGit/hybridpipe.io.svg)](https://pkg.go.dev/github.com/AnandSGit/hybridpipe.io)
+[![Go Report Card](https://goreportcard.com/badge/github.com/AnandSGit/hybridpipe.io)](https://goreportcard.com/report/github.com/AnandSGit/hybridpipe.io)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-*Version: 2.0.0 (April 2025)*
+*Version: 2.0.0 (June 2023)*
 
 </div>
 
@@ -65,7 +65,10 @@ HybridPipe provides a unified messaging interface for various message brokers an
 
 ```bash
 # Install the HybridPipe library
-go get -u hybridpipe.io
+go get -u github.com/AnandSGit/hybridpipe.io
+
+# Or add to your go.mod file
+# require github.com/AnandSGit/hybridpipe.io v2.0.0
 ```
 
 ## ⚙️ Configuration
@@ -156,7 +159,7 @@ HybridPipe uses a few key concepts:
 
 ```go
 import (
-    hp "hybridpipe.io"
+    hp "github.com/AnandSGit/hybridpipe.io"
 )
 
 // Define a custom message type
@@ -348,7 +351,14 @@ An embedded system deployable version of HybridPipe is under development in Rust
 
 ## 🔄 Recent Improvements
 
-### Code Quality Improvements (April 2025)
+### New Protocol Implementations (June 2023)
+
+- **MQTT Support**: Added full implementation of MQTT protocol using Eclipse Paho MQTT client
+- **Apache Qpid Support**: Added full implementation of Apache Qpid protocol
+- **Thread Safety**: Improved mutex protection across all protocol implementations
+- **Error Handling**: Enhanced error context and recovery mechanisms
+
+### Code Quality Improvements (June 2023)
 
 - **Documentation**: Added comprehensive package and function documentation
 - **Error Handling**: Implemented consistent error patterns with context
