@@ -1,174 +1,340 @@
-```Date: March 14th 2020```
-<img width="534" alt="Screen Shot 2020-08-16 at 15 56 59" src="https://user-images.githubusercontent.com/5903620/170846556-73feced0-73fc-4fb2-bb88-e04101954968.png">
+# HybridPipe
 
-### Tools / Platforms used
--   [Apache Kafka](https://kafka.apache.org/)
--   [NATS](https://nats.io/)
--   [RabbitMQ](https://www.rabbitmq.com/)
--   [ZeroMQ](https://zeromq.org/)
--   [AMQP_1.0](https://zeromq.org/)
--   [MQTT](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)
--   [NSQ](https://nsq.io/)
+<div align="center">
 
-### Design Goals
-1. Components with-in Client Application systems, should be able to communicate between them in both Async and Pseudo Sync communication Model.
-2. Users (Hybridpipe clients) should be able to select the Messaging platforms available (KAFKA & NATS). [Future
- Expansion may include NSQ/TCP]
-3. Clients should be able to communicate with their targets via both KAFKA and NATS at the same time. There shouldn't be multiple clients involved just for Hybridpipe communications.
-4. Switching between these message platforms should be very simple and shouldn't involve Hybridpipe re-build and re-deployment.
-5. Messaging system should support extra features that may come with platforms like NATS / NSQ etc.
-6. Messaging system should always be expandable for inclusion of any new platforms.
-7. Expose very little set of functions and data structures to the Messaging system clients.
-8. HybridPipe implementation will be done in Rust with November Release.
+![HybridPipe Logo](https://user-images.githubusercontent.com/5903620/170846556-73feced0-73fc-4fb2-bb88-e04101954968.png)
 
-### Developer / User Guide
-HybridPipe have 2 components to define the functionalities required.
-1.  Platform
-2.  Piping Library
+**A unified messaging interface for microservices and distributed systems**
 
-Platform contains both KAFKA and NATS deployment files.  Kafka would be deployed in bare-metal systems (Not as
- Container) because of the load and size of the system.  Kafka is having functionality dependence with Zookeeper (Installation is included along with Kafka)
+[![Go Reference](https://pkg.go.dev/badge/hybridpipe.io.svg)](https://pkg.go.dev/hybridpipe.io)
+[![Go Report Card](https://goreportcard.com/badge/hybridpipe.io)](https://goreportcard.com/report/hybridpipe.io)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-#### Commands to Control the messaging platforms
-```shell
-## For Kafka
-$ sudo systemctl <start/restart/status/stop> zookeeper.service
-$ sudo systemctl <start/restart/status/stop> kafka.service
-## For NATS
-$ nats-server -p 4222 -D -T --user anands --pass this4now &
+*Version: 2.0.0 (April 2025)*
+
+</div>
+
+## 📋 Table of Contents
+
+- [Overview](#-overview)
+- [Features](#-features)
+- [Supported Messaging Systems](#-supported-messaging-systems)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+  - [Basic Concepts](#basic-concepts)
+  - [Code Examples](#code-examples)
+- [Security](#-security)
+- [API Reference](#-api-reference)
+- [Architecture](#-architecture)
+- [Implementation Status](#-implementation-status)
+- [Recent Improvements](#-recent-improvements)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+## 🔍 Overview
+
+HybridPipe provides a unified messaging interface for various message brokers and queuing systems. It enables seamless communication between microservices or individual processes via different messaging systems using a consistent API. With HybridPipe, you can switch between messaging platforms without changing your application code.
+
+## ✨ Features
+
+- **Unified API**: Single consistent interface for multiple messaging systems
+- **Pluggable Architecture**: Easy to add support for new messaging platforms
+- **Flexible Communication Patterns**: Support for both asynchronous and pseudo-synchronous communication
+- **Type Safety**: Send and receive strongly-typed messages with automatic serialization/deserialization
+- **Concurrent Processing**: Thread-safe operations with proper resource management
+- **Secure Communication**: Built-in TLS support for secure messaging
+- **Configurable**: Environment variable support and flexible configuration options
+- **Robust Error Handling**: Consistent error patterns with detailed context
+
+## 🚀 Supported Messaging Systems
+
+| Platform | Status | Description |
+|----------|--------|-------------|
+| [Apache Kafka](https://kafka.apache.org/) | ✅ Full | Distributed streaming platform |
+| [NATS](https://nats.io/) | ✅ Full | Cloud-native messaging system |
+| [RabbitMQ](https://www.rabbitmq.com/) | ✅ Full | Message broker supporting multiple protocols |
+| [AMQP 1.0](https://www.amqp.org) | ✅ Full | Advanced Message Queuing Protocol |
+| [ZeroMQ](https://zeromq.org/) | 🔄 Partial | Distributed messaging library |
+| [MQTT](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html) | 🔄 Partial | IoT connectivity protocol |
+| [NSQ](https://nsq.io/) | 📅 Planned | Realtime distributed messaging platform |
+| TCP/Redis | 📅 Planned | Direct TCP and Redis-based messaging |
+
+## 📦 Installation
+
+```bash
+# Install the HybridPipe library
+go get -u hybridpipe.io
 ```
 
-#### NOTE:
-For now, since there is no deployment specification defined for App messaging, we are deploying platforms directly on
- top of OS to extract better performance (Not as Container, even-though we have created the Dockerfile to make these systems as containers) - This would be taken in phase2 once we have clear understanding on deployments for overall App systems.
+## ⚙️ Configuration
 
-### TLS
-Using OpenSSL For TLS Client and Server Certificates generation with Local Self signed CA
-```shell
-# Generate CA: This will generate Certificate Authority and Private Key Files.
-$ openssl req -out App_CA.pem -new -x509
+HybridPipe uses a TOML configuration file for setting up connections to various messaging platforms. The configuration file can be placed in several locations:
 
-# Generate Server Certificate and Key Pair:
-$ touch file.srl => update the file with a serial starting number eg: 01
-$ openssl genrsa -out app-mq-server.key 2048 => 4096 Encryption would be an overkill
-$ openssl req -key app-mq-server.key -new -out app-mq-server.req
-$ openssl x509 -req -in app-mq-server.req -CA App_CA.pem -CAkey privkey.pem -CAserial file.srl -out app-mq-server.pem
+- Current directory: `./hybridpipe_db.toml`
+- System-wide: `/etc/hybridpipe/hybridpipe_db.toml`
+- Application-specific: `/opt/hybridpipe/config/hybridpipe_db.toml`
+- User-specific: `$HOME/.config/hybridpipe/hybridpipe_db.toml`
 
-# Generate Client Certificate and Key Pair:
-$ openssl genrsa -out client.key 2048 => We are not encrypting the Key. Else we need to add option "-des3"
-$ openssl req -key app-mq-client.key -new -out app-mq-client.req
-$ openssl x509 -req -in app-mq-client.req -CA CA.pem -CAkey privkey.pem -CAserial file.srl -out app-mq-client.pem
+You can also specify a custom configuration file location using the `HYBRIDPIPE_CONFIG` environment variable.
+
+### Sample Configuration
+
+```toml
+# HybridPipe Configuration File
+
+[NATS]
+NServers           = "localhost"
+NLPort             = 4222
+NMPort             = 8222
+NCPort             = 6222
+NATSCertFile       = "/path/to/nats-client.pem"
+NATSKeyFile        = "/path/to/nats-client.key"
+NATSCAFile         = "/path/to/nats-server-ca.pem"
+NAllow_Reconnect   = true
+NMax_Attempt       = 10
+NReconnect_Wait    = 5
+NTimeout           = 2
+
+[KAFKA]
+KServers   = "localhost"
+KLPort     = 9093
+KTimeout   = 10
+KAFKACertFile       = "/path/to/kafka-client.cert.pem"
+KAFKAKeyFile        = "/path/to/kafka-client.key.pem"
+KAFKACAFile         = "/path/to/kafka-rootca.cert.pem"
+
+[RABBITMQ]
+RServerPort    = "amqp://guest:guest@localhost:5672/"
+
+[AMQP1]
+AMQPServer = "amqp://0.0.0.0:5672/"
+AMQPPort   = 5672
+
+[GENERAL]
+DBLocation     = "/path/to/config"
 ```
 
-Note: Please make sure we are using same CA.pem and PrivateKey Files generated in Step 1, when we generate both
- Client and Server Certificates along with keys.
+## 🔧 Usage
 
-### Messaging System Usage
+### Basic Concepts
 
-Messaging system exposes following list of Constants and APIs (with Description).  Usage example section would
- explain each possible scenarios along with more description.
+HybridPipe uses a few key concepts:
 
-**BrokerType will allow user / client to select the underlying Messaging platform out of 4 which are defined.**
-1.  NATS
-2.  KAFKA
-3.  NSQ - Future expansion possibility
-4.  RABBITMQ - Future expansion possibility
+- **Broker Type**: The messaging system you want to use (Kafka, NATS, etc.)
+- **Pipe**: A named channel for sending/receiving messages (similar to topics or subjects)
+- **Process Function**: A callback function that processes received messages
+- **Connection Handle**: An object representing a connection to a messaging system
 
-##### API - **Medium (bt int, fn ResponseHandler) (Handle, error)**
-​        bt - BrokerType
-​        fn - ResponseHandler which would be called in case of any NATS Sync Request. If User wants their application
- to respond for "REQUEST" queries from other systems, they should enable this
-function and they should handle the incoming data, parse and derive the response and return the same.
-​        returns
-​        MQBus - handle to Messaging system Connection
-​        Error - can be nil if there is no error
-This API works as Abstract factory to create the end object based on the information uses passes. This API will
- decide if user asked KAFKA / NATS as messaging system, decides if the connection created
-for Sending messages or for message subscription and defines thru which channel the communication happens.
+### Code Examples
 
-##### API - **Distribute (pipe string, data interface{})**
-​        pipe - Topic / Subject name to which message to be sent
-​        data - Data in interface format. Any data (User-defined or Primitive) can be sent
-This API should be called to send message to any specific Pipe (Topic / Subject)
+#### Initialize and Register Custom Types
 
-##### API - **Accept (pipe string, fn MessageHandler)) error**
-​        pipe - Pipe name (Topic / Subject)
-​		fn   - Handler for processing the incoming message, Callback function
-This API should be called if user wants to accept message from a specific Pipe.
-
-##### API - **Get(pipe string, data interface{}) interface{}
-​		pipe - Pipe name (Topic / Subject)
-​		data - Request Data to be sent to the Target.
-This API should be used to get any information from another process with-in client space, if the target too uses
- Hybridpipe for transacting data. This will be pseudo synchronous call.
-
-##### API - **Enable(<User-Defined Struct>)**
-​		Any user defined Type like "Person" struct defined above, can be passed for this API. This API will enable
- and allow user to send any type of data over Hybridpipe.
-
-##### API - **Close()**
-This API would disconnect from the messaging platform and removes the mapping between Messaging channel and
- connection before removing the connection.
-
-### USAGE EXAMPLES and Description
-Please refer the files
-1. mqconsumer/mqconsumer.go - Consumer implementations for Hybridpipe
-2. mqproducer/mqproducer.go - Producer implementations for Hybridpipe
-
-#### To Subscribe for Messages via KAFKA
 ```go
-kafkaObj, err := dc.Medium(dc.KAFKA, nil)
-defer kafkaObj.Close()
-kafkaObject.Accept("App.iLO5.App1", HandleKafkaMessage)
-```
-During subscription, user needs to pass their own function pointer to "" API to handle the incoming data. In this
- case, "HandleKafkaMessage" would be user defined one.
+import (
+    hp "hybridpipe.io"
+)
 
-#### To Send Messages via KAFKA
-```go
-kafkaObj, err := dc.Medium(dc.KAFKA, nil)
-defer kafkaObj.Close()
-kafkaObj.Distribute("App.iLO5.APP1", Data)
+// Define a custom message type
+type Person struct {
+    Name    string
+    Age     int
+    NextGen []string
+    CAge    []int
+}
 
-// Here P is a struct defined in the Producer side and they want to send it to Consumer
-Data := &Person {
-        Name: "David Gower",
-        Age: 75,
-        NextGen: []string{"Pringle", "NH Fairbrother", "Wasim"},
-        CAge: []int{45, 37, 39},
-        Next:  Nx,
+// Register the custom type with HybridPipe
+func init() {
+    hp.Enable(Person{})
 }
 ```
-Here APIs are same. But instead of handler function, we are having struct P. Before sending any data of type Person
- struct, Client need to make messaging system to learn about this data type using API
-"LearnDataType (&Person{})".
 
-#### To Subscribe for messages via NATS
+#### Publish Messages
+
 ```go
-NatsObj, err := dc.Medium(dc.NATS, HandleRequestQueriesFromAll)
-defer NatsObj.Close()
-NatsObj.Accept("App.iLO5.Nats.APP2", HandleNatsMessage)
-```
-It works similar to Kafka. When the message arrives, that will be passed to Callback function, in this case
- "HandleNatsMessage".
+// Connect to Kafka
+kafkaConn, err := hp.DeployRouter(hp.KAFKA)
+if err != nil {
+    log.Fatalf("Failed to connect to Kafka: %v", err)
+}
+defer kafkaConn.Close()
 
-#### To Send messages via NATS
-```go
-NatsObj, err := dc.Medium(dc.NATS, nil)
-defer NatsObj.Close()
-NatsObj.Distribute("App.iLO5.Nats.APP2", data)
+// Create a message
+person := Person{
+    Name:    "David Gower",
+    Age:     75,
+    NextGen: []string{"Pringle", "NH Fairbrother", "Wasim"},
+    CAge:    []int{45, 37, 39},
+}
 
-// In the case, user sends the message in any format.  If user sends a specfic user-defined struct object, that
- should be enabled with Hybridpipe first using API "Enable" liek below
-
-dc.Enable(Person{})  // In this case, Person is a struct definition.  These struct members should be exported already
- and available across these 2 target systems for enabling / sending these user-defined objects.
-
-jd string = `{
-    "fruit": "Apple",
-    "size": "Large",
-    "color": "Red"
-}`
+// Send the message to a pipe
+err = kafkaConn.Dispatch("app.users.events", person)
+if err != nil {
+    log.Printf("Failed to send message: %v", err)
+}
 ```
 
-##### It is now working on RabbitMQ, TCP and Redis. Embedded system deployable Hybridpipe is under development in Rust (Socket Based).
+#### Subscribe to Messages
+
+```go
+// Connect to NATS
+natsConn, err := hp.DeployRouter(hp.NATS)
+if err != nil {
+    log.Fatalf("Failed to connect to NATS: %v", err)
+}
+defer natsConn.Close()
+
+// Define a message handler
+handleMessage := func(data interface{}) {
+    if person, ok := data.(*Person); ok {
+        log.Printf("Received person: %s, age: %d", person.Name, person.Age)
+    } else {
+        log.Printf("Received data: %v", data)
+    }
+}
+
+// Subscribe to a pipe
+err = natsConn.Accept("app.users.events", handleMessage)
+if err != nil {
+    log.Printf("Failed to subscribe: %v", err)
+}
+
+// Keep the application running
+select {}
+```
+
+#### Using Multiple Messaging Systems Simultaneously
+
+```go
+// Connect to both Kafka and NATS
+kafkaConn, _ := hp.DeployRouter(hp.KAFKA)
+defer kafkaConn.Close()
+
+natsConn, _ := hp.DeployRouter(hp.NATS)
+defer natsConn.Close()
+
+// Send the same message via both systems
+data := map[string]string{"status": "active", "message": "System online"}
+
+kafkaConn.Dispatch("app.status", data)
+natsConn.Dispatch("app.status", data)
+```
+
+## 🔒 Security
+
+HybridPipe supports TLS for secure communication with messaging platforms. You can configure TLS certificates in the configuration file.
+
+### Generating TLS Certificates
+
+```bash
+# Generate a Certificate Authority (CA)
+openssl req -new -x509 -days 365 -nodes -out ca.pem -keyout ca-key.pem
+
+# Generate server certificate
+openssl genrsa -out server.key 2048
+openssl req -new -key server.key -out server.csr
+openssl x509 -req -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server.pem -days 365
+
+# Generate client certificate
+openssl genrsa -out client.key 2048
+openssl req -new -key client.key -out client.csr
+openssl x509 -req -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client.pem -days 365
+```
+
+## 📚 API Reference
+
+### Core Interface
+
+```go
+// HybridPipe defines the interface for all messaging implementations
+type HybridPipe interface {
+    // Connect establishes a connection to the messaging system
+    Connect() error
+
+    // Dispatch sends a message to the specified pipe
+    Dispatch(pipe string, data interface{}) error
+
+    // Accept subscribes to messages from the specified pipe
+    Accept(pipe string, fn Process) error
+
+    // Remove unsubscribes from the specified pipe
+    Remove(pipe string) error
+
+    // Close terminates the connection to the messaging system
+    Close()
+}
+```
+
+### Key Functions
+
+| Function | Description |
+|----------|-------------|
+| `DeployRouter(brokerType int) (HybridPipe, error)` | Creates a connection to the specified messaging system |
+| `Enable(dataType interface{})` | Registers a custom data type for serialization |
+| `Encode(data interface{}) ([]byte, error)` | Serializes data to bytes |
+| `Decode(data []byte, target interface{}) error` | Deserializes bytes to a target object |
+
+### Broker Type Constants
+
+```go
+const (
+    NATS = iota
+    KAFKA
+    RABBITMQ
+    ZEROMQ
+    AMQP1
+    MQTT
+)
+```
+
+## 🏗️ Architecture
+
+HybridPipe uses a pluggable architecture with the following components:
+
+1. **Core Interface**: The `HybridPipe` interface that all messaging implementations must satisfy
+2. **Broker Implementations**: Concrete implementations for each messaging system
+3. **Configuration Manager**: Handles loading and processing configuration
+4. **Serialization System**: Handles encoding/decoding of messages
+5. **Connection Factory**: Creates and manages connections to messaging systems
+
+### Design Principles
+
+1. **Abstraction**: Hide the complexity of different messaging systems behind a unified interface
+2. **Loose Coupling**: Minimize dependencies between components
+3. **Extensibility**: Make it easy to add support for new messaging platforms
+4. **Reliability**: Ensure robust error handling and resource management
+5. **Simplicity**: Expose a minimal, intuitive API to users
+
+## 📊 Implementation Status
+
+- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0
+- **Partially Implemented**: ZeroMQ (structure ready), MQTT (placeholder)
+- **Planned**: NSQ, TCP, Redis
+
+An embedded system deployable version of HybridPipe is under development in Rust.
+
+## 🔄 Recent Improvements
+
+### Code Quality Improvements (April 2025)
+
+- **Documentation**: Added comprehensive package and function documentation
+- **Error Handling**: Implemented consistent error patterns with context
+- **Configuration**: Added flexible configuration loading with environment variable support
+- **Thread Safety**: Added mutex protection and proper resource cleanup
+- **Robustness**: Added connection validation, panic recovery, and timeouts
+- **Consistency**: Standardized function signatures and naming conventions
+
+## 👥 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+

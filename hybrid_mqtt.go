@@ -1,33 +1,45 @@
 package hybridpipe
 
-// MQTTPacket defines the ZeroMQ Message Packet Object. Apart from Base Packet, it
-// will contain Connection Object and identifiers related to ZeroMQ.
-// 	HandleConn - ZeroMQ Connection Object
-// 	PipeHandle - Create the map between Pipe name and NATS Subscription
+import (
+	"fmt"
+	"log"
+	"sync"
+)
+
+// MQTTPacket implements the HybridPipe interface for MQTT messaging system.
+// This is a placeholder implementation that will be completed in a future version.
 type MQTTPacket struct {
+	// mutex protects concurrent access to the packet
+	mutex sync.RWMutex
 }
 
-// Connect - Similar to KafkaConnect in NATS context.
+// Connect establishes a connection to the MQTT server.
+// This is a placeholder implementation that will be completed in a future version.
 func (mp *MQTTPacket) Connect() error {
-	return nil
+	log.Printf("MQTT support is not yet implemented")
+	return fmt.Errorf("MQTT support is not yet implemented")
 }
 
-// Dispatch will be implemented only for AMQP 1.0 medium
-func (mp *MQTTPacket) Dispatch(pipe string, d interface{}) error {
-	return nil
+// Dispatch publishes a message to the specified pipe.
+// This is a placeholder implementation that will be completed in a future version.
+func (mp *MQTTPacket) Dispatch(pipe string, data interface{}) error {
+	return fmt.Errorf("MQTT support is not yet implemented")
 }
 
-// Accept defines the Subscription / Consume procedure.
+// Accept subscribes to messages from the specified pipe and processes them with the provided function.
+// This is a placeholder implementation that will be completed in a future version.
 func (mp *MQTTPacket) Accept(pipe string, fn Process) error {
-	return nil
+	return fmt.Errorf("MQTT support is not yet implemented")
 }
 
-// Remove will close a specific Subscription.
+// Remove unsubscribes from the specified pipe.
+// This is a placeholder implementation that will be completed in a future version.
 func (mp *MQTTPacket) Remove(pipe string) error {
-	return nil
+	return fmt.Errorf("MQTT support is not yet implemented")
 }
 
-// Close will close NATS connection.
+// Close terminates the connection to the MQTT server.
+// This is a placeholder implementation that will be completed in a future version.
 func (mp *MQTTPacket) Close() {
-
+	// Nothing to do yet
 }
