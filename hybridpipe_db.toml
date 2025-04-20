@@ -106,5 +106,11 @@ ZMQCurveServerKey = ""
 ZMQCurvePublicKey = ""
 ZMQCurveSecretKey = ""
 
+[NETCHAN]
+NetChanServer = "localhost"
+NetChanPort = 8080
+NetChanBufferSize = 10
+NetChanTimeout = 5000
+
 [GENERAL]
 DBLocation     = "/Users/anands/go/config"
