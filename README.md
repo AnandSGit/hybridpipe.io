@@ -55,8 +55,9 @@ HybridPipe provides a unified messaging interface for various message brokers an
 | [NATS](https://nats.io/) | ✅ Full | Cloud-native messaging system |
 | [RabbitMQ](https://www.rabbitmq.com/) | ✅ Full | Message broker supporting multiple protocols |
 | [AMQP 1.0](https://www.amqp.org) | ✅ Full | Advanced Message Queuing Protocol |
+| [Apache Qpid](https://qpid.apache.org/) | ✅ Full | Enterprise messaging system |
+| [MQTT](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html) | ✅ Full | IoT connectivity protocol |
 | [ZeroMQ](https://zeromq.org/) | 🔄 Partial | Distributed messaging library |
-| [MQTT](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html) | 🔄 Partial | IoT connectivity protocol |
 | [NSQ](https://nsq.io/) | 📅 Planned | Realtime distributed messaging platform |
 | TCP/Redis | 📅 Planned | Direct TCP and Redis-based messaging |
 
@@ -110,6 +111,29 @@ RServerPort    = "amqp://guest:guest@localhost:5672/"
 [AMQP1]
 AMQPServer = "amqp://0.0.0.0:5672/"
 AMQPPort   = 5672
+
+[QPID]
+QpidServer = "localhost"
+QpidPort = 5672
+QpidUsername = "guest"
+QpidPassword = "guest"
+QpidCertFile = "/path/to/qpid-client.pem"
+QpidKeyFile = "/path/to/qpid-client.key"
+QpidCAFile = "/path/to/qpid-ca.pem"
+QpidTimeout = 10
+
+[MQTT]
+MQTTBroker = "tcp://localhost:1883"
+MQTTClientID = "hybridpipe-client"
+MQTTUsername = "user"
+MQTTPassword = "password"
+MQTTCleanSession = true
+MQTTQoS = 1
+MQTTRetained = false
+MQTTCertFile = "/path/to/mqtt-client.pem"
+MQTTKeyFile = "/path/to/mqtt-client.key"
+MQTTCAFile = "/path/to/mqtt-ca.pem"
+MQTTConnectTimeout = 10
 
 [GENERAL]
 DBLocation     = "/path/to/config"
@@ -206,18 +230,26 @@ select {}
 #### Using Multiple Messaging Systems Simultaneously
 
 ```go
-// Connect to both Kafka and NATS
+// Connect to Kafka, NATS, Qpid, and MQTT
 kafkaConn, _ := hp.DeployRouter(hp.KAFKA)
 defer kafkaConn.Close()
 
 natsConn, _ := hp.DeployRouter(hp.NATS)
 defer natsConn.Close()
 
-// Send the same message via both systems
+qpidConn, _ := hp.DeployRouter(hp.QPID)
+defer qpidConn.Close()
+
+mqttConn, _ := hp.DeployRouter(hp.MQTT)
+defer mqttConn.Close()
+
+// Send the same message via all four systems
 data := map[string]string{"status": "active", "message": "System online"}
 
 kafkaConn.Dispatch("app.status", data)
 natsConn.Dispatch("app.status", data)
+qpidConn.Dispatch("app.status", data)
+mqttConn.Dispatch("app.status", data)
 ```
 
 ## 🔒 Security
@@ -284,6 +316,7 @@ const (
     ZEROMQ
     AMQP1
     MQTT
+    QPID
 )
 ```
 
@@ -307,8 +340,8 @@ HybridPipe uses a pluggable architecture with the following components:
 
 ## 📊 Implementation Status
 
-- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0
-- **Partially Implemented**: ZeroMQ (structure ready), MQTT (placeholder)
+- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT
+- **Partially Implemented**: ZeroMQ (structure ready)
 - **Planned**: NSQ, TCP, Redis
 
 An embedded system deployable version of HybridPipe is under development in Rust.

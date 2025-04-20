@@ -29,5 +29,28 @@ RServerPort    = "amqp://guest:guest@localhost:5672/"
 AMQPServer = "amqp://0.0.0.0:5672/"
 AMQPPort   = 5672
 
+[QPID]
+QpidServer = "localhost"
+QpidPort = 5672
+QpidUsername = "guest"
+QpidPassword = "guest"
+QpidCertFile = "/path/to/qpid-client.pem"
+QpidKeyFile = "/path/to/qpid-client.key"
+QpidCAFile = "/path/to/qpid-ca.pem"
+QpidTimeout = 10
+
+[MQTT]
+MQTTBroker = "tcp://localhost:1883"
+MQTTClientID = "hybridpipe-client"
+MQTTUsername = "user"
+MQTTPassword = "password"
+MQTTCleanSession = true
+MQTTQoS = 1
+MQTTRetained = false
+MQTTCertFile = "/path/to/mqtt-client.pem"
+MQTTKeyFile = "/path/to/mqtt-client.key"
+MQTTCAFile = "/path/to/mqtt-ca.pem"
+MQTTConnectTimeout = 10
+
 [GENERAL]
 DBLocation     = "/Users/anands/go/config"

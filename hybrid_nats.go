@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	nats "github.com/nats-io/nats.go"
@@ -16,6 +17,8 @@ type NatsPacket struct {
 	HandleConn *nats.Conn
 	// PipeHandle maps pipe names to their subscriptions
 	PipeHandle map[string]*nats.Subscription
+	// mutex protects concurrent access to the connection and subscriptions
+	mutex sync.RWMutex
 }
 
 // Connect establishes a connection to the NATS server using the configuration in HPipeConfig.
@@ -58,11 +61,13 @@ func (np *NatsPacket) Connect() error {
 		return fmt.Errorf("failed to connect to NATS server %s: %w", serverURL, err)
 	}
 
-	// Initialize the connection and subscription map
+	// Initialize the connection and subscription map with write lock
+	np.mutex.Lock()
 	np.HandleConn = nc
 	if np.PipeHandle == nil {
 		np.PipeHandle = make(map[string]*nats.Subscription)
 	}
+	np.mutex.Unlock()
 
 	log.Printf("Connected to NATS server at %s", serverURL)
 	return nil
@@ -70,10 +75,13 @@ func (np *NatsPacket) Connect() error {
 
 // Dispatch publishes a message to the specified pipe.
 func (np *NatsPacket) Dispatch(pipe string, data interface{}) error {
-	// Validate connection
+	// Validate connection with read lock
+	np.mutex.RLock()
 	if np.HandleConn == nil {
+		np.mutex.RUnlock()
 		return fmt.Errorf("not connected to NATS server")
 	}
+	np.mutex.RUnlock()
 
 	// Encode the data
 	bytes, err := Encode(data)
@@ -96,10 +104,13 @@ func (np *NatsPacket) Dispatch(pipe string, data interface{}) error {
 
 // Accept subscribes to messages from the specified pipe and processes them with the provided function.
 func (np *NatsPacket) Accept(pipe string, fn Process) error {
-	// Validate connection
+	// Validate connection with read lock
+	np.mutex.RLock()
 	if np.HandleConn == nil {
+		np.mutex.RUnlock()
 		return fmt.Errorf("not connected to NATS server")
 	}
+	np.mutex.RUnlock()
 
 	// Create a queue group name based on the process name
 	queueGroup := getClientName()
@@ -121,42 +132,61 @@ func (np *NatsPacket) Accept(pipe string, fn Process) error {
 		return fmt.Errorf("failed to subscribe to pipe %s: %w", pipe, err)
 	}
 
-	// Store the subscription
+	// Store the subscription with write lock
+	np.mutex.Lock()
 	np.PipeHandle[pipe] = sub
+	np.mutex.Unlock()
+
 	log.Printf("Subscribed to pipe %s with queue group %s", pipe, queueGroup)
 	return nil
 }
 
 // Remove unsubscribes from the specified pipe.
 func (np *NatsPacket) Remove(pipe string) error {
-	// Validate connection
+	// Validate connection with read lock
+	np.mutex.RLock()
 	if np.HandleConn == nil {
+		np.mutex.RUnlock()
 		return fmt.Errorf("not connected to NATS server")
 	}
+	np.mutex.RUnlock()
 
-	// Check if the pipe is subscribed
+	// Check if the pipe is subscribed with read lock
+	np.mutex.RLock()
 	sub, exists := np.PipeHandle[pipe]
 	if !exists {
+		np.mutex.RUnlock()
 		return fmt.Errorf("pipe %s is not subscribed", pipe)
 	}
+	np.mutex.RUnlock()
 
 	// Unsubscribe from the pipe
 	if err := sub.Unsubscribe(); err != nil {
 		return fmt.Errorf("failed to unsubscribe from pipe %s: %w", pipe, err)
 	}
 
-	// Remove the subscription from the map
+	// Remove the subscription from the map with write lock
+	np.mutex.Lock()
 	delete(np.PipeHandle, pipe)
+	np.mutex.Unlock()
+
 	log.Printf("Unsubscribed from pipe %s", pipe)
 	return nil
 }
 
 // Close terminates the connection to the NATS server.
 func (np *NatsPacket) Close() {
-	// Check if connected
+	// Check if connected with read lock
+	np.mutex.RLock()
 	if np.HandleConn == nil {
+		np.mutex.RUnlock()
 		return
 	}
+	np.mutex.RUnlock()
+
+	// Lock for thread safety
+	np.mutex.Lock()
+	defer np.mutex.Unlock()
 
 	// Close all subscriptions
 	for pipe, sub := range np.PipeHandle {

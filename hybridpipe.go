@@ -26,6 +26,8 @@ const (
 	AMQP1
 	// MQTT - http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
 	MQTT
+	// QPID - https://qpid.apache.org/
+	QPID
 )
 
 // RoutersMap defines Broker or Router Registry for Pipe creation.
@@ -46,6 +48,7 @@ func init() {
 	RoutersMap[ZEROMQ] = reflect.TypeOf((*ZMQPacket)(nil)).Elem()
 	RoutersMap[AMQP1] = reflect.TypeOf((*AMQPPacket)(nil)).Elem()
 	RoutersMap[MQTT] = reflect.TypeOf((*MQTTPacket)(nil)).Elem()
+	RoutersMap[QPID] = reflect.TypeOf((*QpidPacket)(nil)).Elem()
 }
 
 // HybridPipe defines the interface for all messaging implementations.

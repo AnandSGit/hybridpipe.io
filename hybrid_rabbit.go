@@ -46,10 +46,13 @@ func (rp *RabbitPacket) Connect() error {
 
 // Dispatch publishes a message to the specified pipe.
 func (rp *RabbitPacket) Dispatch(pipe string, data interface{}) error {
-	// Validate connection
+	// Validate connection with read lock
+	rp.mutex.RLock()
 	if rp.HandleConn == nil || rp.RChannel == nil {
+		rp.mutex.RUnlock()
 		return fmt.Errorf("not connected to RabbitMQ server")
 	}
+	rp.mutex.RUnlock()
 
 	// Declare a queue for the pipe
 	queue, err := rp.RChannel.QueueDeclare(
@@ -90,10 +93,13 @@ func (rp *RabbitPacket) Dispatch(pipe string, data interface{}) error {
 
 // Accept subscribes to messages from the specified pipe and processes them with the provided function.
 func (rp *RabbitPacket) Accept(pipe string, fn Process) error {
-	// Validate connection
+	// Validate connection with read lock
+	rp.mutex.RLock()
 	if rp.HandleConn == nil || rp.RChannel == nil {
+		rp.mutex.RUnlock()
 		return fmt.Errorf("not connected to RabbitMQ server")
 	}
+	rp.mutex.RUnlock()
 
 	// Declare a queue for the pipe
 	queue, err := rp.RChannel.QueueDeclare(
@@ -170,10 +176,13 @@ func (rp *RabbitPacket) Accept(pipe string, fn Process) error {
 
 // Remove unsubscribes from the specified pipe.
 func (rp *RabbitPacket) Remove(pipe string) error {
-	// Validate connection
+	// Validate connection with read lock
+	rp.mutex.RLock()
 	if rp.HandleConn == nil || rp.RChannel == nil {
+		rp.mutex.RUnlock()
 		return fmt.Errorf("not connected to RabbitMQ server")
 	}
+	rp.mutex.RUnlock()
 
 	// Lock for thread safety
 	rp.mutex.Lock()
@@ -201,10 +210,13 @@ func (rp *RabbitPacket) Remove(pipe string) error {
 
 // Close terminates the connection to the RabbitMQ server.
 func (rp *RabbitPacket) Close() {
-	// Check if connected
+	// Check if connected with read lock
+	rp.mutex.RLock()
 	if rp.HandleConn == nil {
+		rp.mutex.RUnlock()
 		return
 	}
+	rp.mutex.RUnlock()
 
 	// Lock for thread safety
 	rp.mutex.Lock()

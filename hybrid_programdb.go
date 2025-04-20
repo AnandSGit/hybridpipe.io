@@ -27,6 +27,8 @@ type HybridDB struct {
 	KafkaF    `toml:"KAFKA"`
 	RabbitMQF `toml:"RABBITMQ"`
 	AMQPF     `toml:"AMQP1"`
+	QpidF     `toml:"QPID"`
+	MQTTF     `toml:"MQTT"`
 	GeneralF  `toml:"GENERAL"`
 }
 
@@ -84,6 +86,52 @@ type AMQPF struct {
 	AMQPServer string `toml:"AMQPServer"`
 	// AMQPPort is the AMQP server port
 	AMQPPort string `toml:"AMQPPort"`
+}
+
+// QpidF contains Apache Qpid specific configuration
+type QpidF struct {
+	// QpidServer is the Qpid server hostname or IP address
+	QpidServer string `toml:"QpidServer"`
+	// QpidPort is the Qpid server port
+	QpidPort int `toml:"QpidPort"`
+	// QpidUsername is the username for authentication
+	QpidUsername string `toml:"QpidUsername"`
+	// QpidPassword is the password for authentication
+	QpidPassword string `toml:"QpidPassword"`
+	// QpidCertFile is the path to the client certificate file
+	QpidCertFile string `toml:"QpidCertFile"`
+	// QpidKeyFile is the path to the client key file
+	QpidKeyFile string `toml:"QpidKeyFile"`
+	// QpidCAFile is the path to the CA certificate file
+	QpidCAFile string `toml:"QpidCAFile"`
+	// QpidTimeout is the connection timeout in seconds
+	QpidTimeout int `toml:"QpidTimeout"`
+}
+
+// MQTTF contains MQTT specific configuration
+type MQTTF struct {
+	// MQTTBroker is the MQTT broker URL (e.g., tcp://localhost:1883)
+	MQTTBroker string `toml:"MQTTBroker"`
+	// MQTTClientID is the client ID for the MQTT connection
+	MQTTClientID string `toml:"MQTTClientID"`
+	// MQTTUsername is the username for authentication
+	MQTTUsername string `toml:"MQTTUsername"`
+	// MQTTPassword is the password for authentication
+	MQTTPassword string `toml:"MQTTPassword"`
+	// MQTTCleanSession determines if the client has a persistent session
+	MQTTCleanSession bool `toml:"MQTTCleanSession"`
+	// MQTTQoS is the Quality of Service level (0, 1, or 2)
+	MQTTQoS int `toml:"MQTTQoS"`
+	// MQTTRetained determines if published messages are retained
+	MQTTRetained bool `toml:"MQTTRetained"`
+	// MQTTCertFile is the path to the client certificate file
+	MQTTCertFile string `toml:"MQTTCertFile"`
+	// MQTTKeyFile is the path to the client key file
+	MQTTKeyFile string `toml:"MQTTKeyFile"`
+	// MQTTCAFile is the path to the CA certificate file
+	MQTTCAFile string `toml:"MQTTCAFile"`
+	// MQTTConnectTimeout is the connection timeout in seconds
+	MQTTConnectTimeout int `toml:"MQTTConnectTimeout"`
 }
 
 // GeneralF contains general configuration options
@@ -148,6 +196,12 @@ func processConfig() {
 	HPipeConfig.NatsF.NATSCertFile = expandEnvPath(HPipeConfig.NatsF.NATSCertFile)
 	HPipeConfig.NatsF.NATSKeyFile = expandEnvPath(HPipeConfig.NatsF.NATSKeyFile)
 	HPipeConfig.NatsF.NATSCAFile = expandEnvPath(HPipeConfig.NatsF.NATSCAFile)
+	HPipeConfig.QpidF.QpidCertFile = expandEnvPath(HPipeConfig.QpidF.QpidCertFile)
+	HPipeConfig.QpidF.QpidKeyFile = expandEnvPath(HPipeConfig.QpidF.QpidKeyFile)
+	HPipeConfig.QpidF.QpidCAFile = expandEnvPath(HPipeConfig.QpidF.QpidCAFile)
+	HPipeConfig.MQTTF.MQTTCertFile = expandEnvPath(HPipeConfig.MQTTF.MQTTCertFile)
+	HPipeConfig.MQTTF.MQTTKeyFile = expandEnvPath(HPipeConfig.MQTTF.MQTTKeyFile)
+	HPipeConfig.MQTTF.MQTTCAFile = expandEnvPath(HPipeConfig.MQTTF.MQTTCAFile)
 	HPipeConfig.GeneralF.DBPath = expandEnvPath(HPipeConfig.GeneralF.DBPath)
 }
 

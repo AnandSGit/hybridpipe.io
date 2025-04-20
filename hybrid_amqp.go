@@ -62,10 +62,13 @@ func (ap *AMQPPacket) Connect() error {
 
 // Dispatch publishes a message to the specified pipe.
 func (ap *AMQPPacket) Dispatch(pipe string, data interface{}) error {
-	// Validate connection
+	// Validate connection with read lock
+	ap.mutex.RLock()
 	if ap.HandleConn == nil {
+		ap.mutex.RUnlock()
 		return fmt.Errorf("not connected to AMQP server")
 	}
+	ap.mutex.RUnlock()
 
 	// Create a new session
 	session, err := ap.HandleConn.NewSession()
@@ -104,10 +107,13 @@ func (ap *AMQPPacket) Dispatch(pipe string, data interface{}) error {
 
 // Accept subscribes to messages from the specified pipe and processes them with the provided function.
 func (ap *AMQPPacket) Accept(pipe string, fn Process) error {
-	// Validate connection
+	// Validate connection with read lock
+	ap.mutex.RLock()
 	if ap.HandleConn == nil {
+		ap.mutex.RUnlock()
 		return fmt.Errorf("not connected to AMQP server")
 	}
+	ap.mutex.RUnlock()
 
 	// Lock for thread safety
 	ap.mutex.Lock()
@@ -213,10 +219,13 @@ func (ap *AMQPPacket) readMessages(ctx context.Context, pipe string, receiver *a
 
 // Remove unsubscribes from the specified pipe.
 func (ap *AMQPPacket) Remove(pipe string) error {
-	// Validate connection
+	// Validate connection with read lock
+	ap.mutex.RLock()
 	if ap.HandleConn == nil {
+		ap.mutex.RUnlock()
 		return fmt.Errorf("not connected to AMQP server")
 	}
+	ap.mutex.RUnlock()
 
 	// Lock for thread safety
 	ap.mutex.Lock()
@@ -254,10 +263,13 @@ func (ap *AMQPPacket) Remove(pipe string) error {
 
 // Close terminates the connection to the AMQP server.
 func (ap *AMQPPacket) Close() {
-	// Check if connected
+	// Check if connected with read lock
+	ap.mutex.RLock()
 	if ap.HandleConn == nil {
+		ap.mutex.RUnlock()
 		return
 	}
+	ap.mutex.RUnlock()
 
 	// Lock for thread safety
 	ap.mutex.Lock()
