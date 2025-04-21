@@ -73,7 +73,7 @@ type HybridPipe interface {
 	Connect() error
 
 	// Dispatch sends a message to the specified pipe.
-	Dispatch(pipe string, data interface{}) error
+	Dispatch(pipe string, data any) error
 
 	// Accept subscribes to messages from the specified pipe and processes them with the provided function.
 	Accept(pipe string, fn Process) error
@@ -86,7 +86,7 @@ type HybridPipe interface {
 }
 
 // Process defines the callback function that should be called when a client receives a message.
-type Process = func(data interface{})
+type Process = func(data any)
 
 // DeployRouter creates and connects to the specified broker/router for communication.
 // It returns a connected HybridPipe interface for the requested messaging system.
@@ -122,7 +122,7 @@ func DeployRouter(brokerType int) (HybridPipe, error) {
 
 // Encode converts user-defined data (to be transmitted) into a byte stream.
 // It uses Go's gob encoding for serialization.
-func Encode(data interface{}) ([]byte, error) {
+func Encode(data any) ([]byte, error) {
 	var buffer bytes.Buffer
 	encoder := gob.NewEncoder(&buffer)
 
@@ -135,7 +135,7 @@ func Encode(data interface{}) ([]byte, error) {
 
 // Decode converts a received byte stream back into user-defined interface data.
 // It uses Go's gob decoding for deserialization.
-func Decode(data []byte, target interface{}) error {
+func Decode(data []byte, target any) error {
 	reader := bytes.NewReader(data)
 	decoder := gob.NewDecoder(reader)
 
@@ -148,6 +148,6 @@ func Decode(data []byte, target interface{}) error {
 
 // Enable registers a specific user-defined data type to be passed via HybridPipe.
 // This must be called before sending custom data types through the messaging system.
-func Enable(dataType interface{}) {
+func Enable(dataType any) {
 	gob.Register(dataType)
 }

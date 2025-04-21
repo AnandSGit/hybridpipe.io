@@ -51,6 +51,9 @@
     - [Event-Driven Architecture](#event-driven-architecture)
     - [Migration Between Messaging Systems](#migration-between-messaging-systems)
   - [📊 Implementation Status](#-implementation-status)
+  - [📊 Message Tracing and Monitoring](#-message-tracing-and-monitoring)
+    - [Tracing Features](#tracing-features)
+    - [Tracing Example](#tracing-example)
   - [🔄 Recent Improvements](#-recent-improvements)
     - [New Protocol Implementations (April 19, 2025)](#new-protocol-implementations-april-19-2025)
     - [Code Quality Improvements (April 19, 2025)](#code-quality-improvements-april-19-2025)
@@ -74,6 +77,7 @@ HybridPipe provides a unified messaging interface for various message brokers an
 - **Secure Communication**: Built-in TLS support for secure messaging
 - **Configurable**: Environment variable support and flexible configuration options
 - **Robust Error Handling**: Consistent error patterns with detailed context
+- **Message Tracing and Monitoring**: Comprehensive visibility into message flows across services
 
 ## 🚀 Supported Messaging Systems
 
@@ -665,15 +669,66 @@ func publishOrder(order Order) {
 
 ## 📊 Implementation Status
 
-- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis, ZeroMQ, NetChan
+- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis, ZeroMQ, NetChan, Message Tracing and Monitoring
 - **Partially Implemented**: None
 
 An embedded system deployable version of HybridPipe is under development in Rust.
+
+## 📊 Message Tracing and Monitoring
+
+HybridPipe includes a comprehensive message tracing and monitoring system that provides visibility into message flows across different services and protocols.
+
+### Tracing Features
+
+- **End-to-End Tracing**: Track messages across multiple services and protocols
+- **Distributed Tracing**: Correlate traces across different processes and machines
+- **Performance Monitoring**: Measure throughput, latency, error rates, and more
+- **Visualization**: Web-based dashboards for trace data and metrics
+- **Exporters**: Export to OpenTelemetry, Prometheus, Jaeger, and more
+
+### Tracing Example
+
+```go
+// Initialize the tracer
+tracer, err := tracing.NewTracer(tracing.Config{
+    ServiceName: "my-service",
+    SamplingRate: 0.1, // Sample 10% of messages
+})
+if err != nil {
+    log.Fatalf("Failed to create tracer: %v", err)
+}
+defer tracer.Shutdown(context.Background())
+
+// Create a HybridPipe router
+router, err := hp.DeployRouter(hp.KAFKA)
+if err != nil {
+    log.Fatalf("Failed to create router: %v", err)
+}
+
+// Wrap the router with tracing middleware
+tracedRouter := tracing.WrapRouter(router, tracer)
+
+// Use the traced router as you would use a normal router
+ctx, span := tracer.Start(context.Background(), "send-message")
+err = tracedRouter.Dispatch("my-pipe", "Hello, world!")
+if err != nil {
+    span.RecordError(err)
+    span.SetStatus(tracing.StatusError, err.Error())
+}
+span.End()
+```
+
+For more details, see the [Tracing Documentation](TRACING_DOCUMENTATION.md).
 
 ## 🔄 Recent Improvements
 
 ### New Protocol Implementations (April 19, 2025)
 
+- **Message Tracing and Monitoring**: Added comprehensive tracing and monitoring system
+  - **Distributed Tracing**: Track messages across multiple services and protocols
+  - **Performance Metrics**: Measure throughput, latency, error rates, and more
+  - **Visualization**: Web-based dashboards for trace data and metrics
+  - **Exporters**: Support for OpenTelemetry, Prometheus, Jaeger, and more
 - **NetChan Support**: Added implementation of Go channels over network for inter-process communication
   - **Native Channel Syntax**: Added support for using Go's native channel operators (`<-` and `->`) with NetChan
   - **Channel Wrapper**: Implemented a wrapper that provides Go channel semantics over the network
@@ -711,6 +766,7 @@ HybridPipe has several planned enhancements:
    - Message batching for high-throughput scenarios
    - Automatic reconnection and recovery for all protocols
    - Circuit breaker pattern implementation
+   - AI-powered tracing analysis and anomaly detection
 
 3. **Performance Improvements**:
    - Optimized serialization options (Protocol Buffers, MessagePack)
@@ -729,9 +785,9 @@ HybridPipe has several planned enhancements:
    - Competing consumers pattern
 
 3. **Enterprise Features**:
-   - Message tracing and monitoring
+   - Advanced tracing capabilities (predictive analytics, cross-system correlation)
    - Integration with service meshes
-   - Enhanced security features
+   - Enhanced security features (OAuth, JWT, and SASL authentication)
 
 ## 👥 Contributing
 
