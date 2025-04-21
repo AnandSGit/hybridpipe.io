@@ -4,7 +4,6 @@
 package hybridpipe
 
 import (
-	"bytes"
 	"encoding/gob"
 	"fmt"
 	"log"
@@ -121,33 +120,24 @@ func DeployRouter(brokerType int) (HybridPipe, error) {
 }
 
 // Encode converts user-defined data (to be transmitted) into a byte stream.
-// It uses Go's gob encoding for serialization.
+// It uses the default serialization format (gob for backward compatibility).
+// For more control over serialization, use EncodeWithOptions.
 func Encode(data any) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
-
-	if err := encoder.Encode(&data); err != nil {
-		return nil, fmt.Errorf("encoding error: %w", err)
-	}
-
-	return buffer.Bytes(), nil
+	// Use the default serialization options (gob for backward compatibility)
+	return EncodeWithOptions(data, DefaultSerializationOptions())
 }
 
 // Decode converts a received byte stream back into user-defined interface data.
-// It uses Go's gob decoding for deserialization.
+// It automatically detects the serialization format used.
+// For more control over deserialization, use DecodeWithOptions.
 func Decode(data []byte, target any) error {
-	reader := bytes.NewReader(data)
-	decoder := gob.NewDecoder(reader)
-
-	if err := decoder.Decode(target); err != nil {
-		return fmt.Errorf("decoding error: %w", err)
-	}
-
-	return nil
+	// Use DecodeWithOptions which will automatically detect the format
+	return DecodeWithOptions(data, target)
 }
 
 // Enable registers a specific user-defined data type to be passed via HybridPipe.
 // This must be called before sending custom data types through the messaging system.
+// Note: This is only needed for gob encoding, not for other formats.
 func Enable(dataType any) {
 	gob.Register(dataType)
 }

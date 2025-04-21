@@ -73,6 +73,7 @@ HybridPipe provides a unified messaging interface for various message brokers an
 - **Pluggable Architecture**: Easy to add support for new messaging platforms
 - **Flexible Communication Patterns**: Support for both asynchronous and pseudo-synchronous communication
 - **Type Safety**: Send and receive strongly-typed messages with automatic serialization/deserialization
+- **Language Agnostic**: Support for multiple serialization formats (JSON, Protocol Buffers, MessagePack) for cross-language compatibility
 - **Concurrent Processing**: Thread-safe operations with proper resource management
 - **Secure Communication**: Built-in TLS support for secure messaging
 - **Configurable**: Environment variable support and flexible configuration options
@@ -562,9 +563,12 @@ type HybridPipe interface {
 | Function | Description |
 |----------|-------------|
 | `DeployRouter(brokerType int) (HybridPipe, error)` | Creates a connection to the specified messaging system |
-| `Enable(dataType interface{})` | Registers a custom data type for serialization |
-| `Encode(data interface{}) ([]byte, error)` | Serializes data to bytes |
+| `Enable(dataType interface{})` | Registers a custom data type for serialization (for gob encoding) |
+| `Encode(data interface{}) ([]byte, error)` | Serializes data to bytes using the default format |
 | `Decode(data []byte, target interface{}) error` | Deserializes bytes to a target object |
+| `EncodeWithOptions(data interface{}, options SerializationOptions) ([]byte, error)` | Serializes data with specific format options |
+| `DecodeWithOptions(data []byte, target interface{}) error` | Deserializes data with format detection |
+| `RegisterProtobufType(message proto.Message)` | Registers a Protocol Buffer message type |
 
 ### Broker Type Constants
 
@@ -669,10 +673,78 @@ func publishOrder(order Order) {
 
 ## 📊 Implementation Status
 
-- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis, ZeroMQ, NetChan, Message Tracing and Monitoring
+- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis, ZeroMQ, NetChan, Message Tracing and Monitoring, Language-Agnostic Serialization
 - **Partially Implemented**: None
 
 An embedded system deployable version of HybridPipe is under development in Rust.
+
+## 🔄 Language-Agnostic Serialization
+
+HybridPipe supports multiple serialization formats to enable cross-language compatibility:
+
+### Supported Formats
+
+| Format | Description | Language Support | Use Case |
+|--------|-------------|------------------|----------|
+| **JSON** | Text-based, human-readable format | All languages | Human-readable data, web integration |
+| **Protocol Buffers** | Binary format with schema | Most languages | Efficient binary encoding, strict typing |
+| **MessagePack** | Binary JSON alternative | Most languages | Compact binary format with JSON-like flexibility |
+| **GOB** | Go's native binary format | Go only | Legacy support, Go-to-Go communication |
+
+### Using Different Serialization Formats
+
+```go
+// Import the package
+import hp "github.com/AnandSGit/hybridpipe.io"
+
+// Create serialization options for JSON
+jsonOptions := hp.SerializationOptions{
+    Format: hp.FormatJSON,
+    Compression: true,
+}
+
+// Serialize data using JSON
+data := map[string]interface{}{
+    "name": "John Doe",
+    "age": 30,
+    "items": []string{"phone", "laptop"},
+}
+
+jsonBytes, err := hp.EncodeWithOptions(data, jsonOptions)
+if err != nil {
+    log.Fatalf("Failed to serialize: %v", err)
+}
+
+// Create serialization options for Protocol Buffers
+pbOptions := hp.SerializationOptions{
+    Format: hp.FormatProtobuf,
+}
+
+// Register a Protocol Buffer message type
+hp.RegisterProtobufType(&MyProtoMessage{})
+
+// Serialize a Protocol Buffer message
+protoMsg := &MyProtoMessage{
+    Field1: "value1",
+    Field2: 42,
+}
+
+protoBytes, err := hp.EncodeWithOptions(protoMsg, pbOptions)
+if err != nil {
+    log.Fatalf("Failed to serialize: %v", err)
+}
+```
+
+### Cross-Language Communication
+
+HybridPipe provides client libraries for multiple languages that use the same wire format:
+
+- **Go**: Native implementation
+- **Python**: Full support for JSON, Protocol Buffers, and MessagePack
+- **JavaScript/Node.js**: Full support for JSON, Protocol Buffers, and MessagePack
+- **Java**: Full support for JSON, Protocol Buffers, and MessagePack
+
+See the [examples/multilang](examples/multilang) directory for examples in different languages and the [Serialization Documentation](SERIALIZATION.md) for detailed information.
 
 ## 📊 Message Tracing and Monitoring
 
@@ -723,6 +795,12 @@ For more details, see the [Tracing Documentation](TRACING_DOCUMENTATION.md).
 ## 🔄 Recent Improvements
 
 ### New Protocol Implementations (April 19, 2025)
+
+- **Language-Agnostic Serialization**: Added support for multiple serialization formats
+  - **Multiple Formats**: JSON, Protocol Buffers, MessagePack, and GOB
+  - **Cross-Language Support**: Client libraries for Python, JavaScript, and Java
+  - **Compression**: Automatic compression for large messages
+  - **Format Negotiation**: Automatic format detection and backward compatibility
 
 - **Message Tracing and Monitoring**: Added comprehensive tracing and monitoring system
   - **Distributed Tracing**: Track messages across multiple services and protocols
@@ -776,8 +854,8 @@ HybridPipe has several planned enhancements:
 ### Long-Term Vision
 
 1. **Cross-Language Support**:
-   - Client libraries for other languages (Python, Java, JavaScript)
-   - Language-agnostic serialization formats
+   - Additional client libraries for other languages (C#, Ruby, PHP)
+   - Enhanced interoperability with non-Go systems
 
 2. **Advanced Patterns**:
    - Request-reply pattern support

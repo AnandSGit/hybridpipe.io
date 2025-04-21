@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package hybridpipe;
+
+option go_package = "hybridpipe.io/proto";
+option java_package = "io.hybridpipe.proto";
+option java_multiple_files = true;
+option csharp_namespace = "HybridPipe.Proto";
+
+// HybridMessage represents a generic message that can be sent through HybridPipe.
+message HybridMessage {
+  // Header contains metadata about the message
+  MessageHeader header = 1;
+  
+  // Payload contains the actual message data
+  oneof payload {
+    StringMessage string_message = 2;
+    BytesMessage bytes_message = 3;
+    JsonMessage json_message = 4;
+    KeyValueMessage key_value_message = 5;
+  }
+}
+
+// MessageHeader contains metadata about the message
+message MessageHeader {
+  // Message ID for tracing and correlation
+  string message_id = 1;
+  
+  // Source service or component that sent the message
+  string source = 2;
+  
+  // Destination service or component
+  string destination = 3;
+  
+  // Timestamp when the message was created (in milliseconds since epoch)
+  int64 timestamp = 4;
+  
+  // Content type of the message
+  string content_type = 5;
+  
+  // Additional headers as key-value pairs
+  map<string, string> headers = 6;
+}
+
+// StringMessage contains a simple string payload
+message StringMessage {
+  string value = 1;
+}
+
+// BytesMessage contains a binary payload
+message BytesMessage {
+  bytes value = 1;
+}
+
+// JsonMessage contains a JSON string
+message JsonMessage {
+  string json = 1;
+}
+
+// KeyValueMessage contains a collection of key-value pairs
+message KeyValueMessage {
+  map<string, Value> values = 1;
+}
+
+// Value represents a dynamically typed value
+message Value {
+  oneof kind {
+    string string_value = 1;
+    int64 int_value = 2;
+    double double_value = 3;
+    bool bool_value = 4;
+    bytes bytes_value = 5;
+    ListValue list_value = 6;
+    MapValue map_value = 7;
+  }
+}
+
+// ListValue represents a list of values
+message ListValue {
+  repeated Value values = 1;
+}
+
+// MapValue represents a map of string to values
+message MapValue {
+  map<string, Value> values = 1;
+}
