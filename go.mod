@@ -9,12 +9,12 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/eclipse/paho.mqtt.golang v1.5.0
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/golang/protobuf v1.5.4
 	github.com/nats-io/nats.go v1.39.1
 	github.com/nsqio/go-nsq v1.1.0
 	github.com/segmentio/kafka-go v0.4.2
 	github.com/streadway/amqp v1.0.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
+	google.golang.org/protobuf v1.36.6
 	pack.ag/amqp v0.12.5
 )
 
@@ -40,5 +40,4 @@ require (
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
 )
