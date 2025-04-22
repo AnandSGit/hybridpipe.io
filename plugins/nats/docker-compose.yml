@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  # Basic NATS server
+  nats:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NATS_VERSION: v2.10.5
+    image: hybridpipe/nats:latest
+    container_name: hybridpipe-nats
+    ports:
+      - "4222:4222"  # Client connections
+      - "8222:8222"  # HTTP monitoring
+    volumes:
+      - ./config:/nats/config
+    environment:
+      - CONFIG_FILE=/nats/config/nats.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/varz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - hybridpipe-network
+
+  # NATS server with TLS enabled
+  nats-tls:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NATS_VERSION: v2.10.5
+    image: hybridpipe/nats:latest
+    container_name: hybridpipe-nats-tls
+    ports:
+      - "4223:4222"  # Client connections (TLS)
+      - "8223:8222"  # HTTP monitoring
+    volumes:
+      - ./config:/nats/config
+      - ./certs:/nats/config/certs
+    environment:
+      - CONFIG_FILE=/nats/config/tls.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/varz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - hybridpipe-network
+    profiles:
+      - tls
+
+  # NATS cluster (3 nodes)
+  nats-cluster-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NATS_VERSION: v2.10.5
+    image: hybridpipe/nats:latest
+    container_name: hybridpipe-nats-cluster-1
+    ports:
+      - "4224:4222"  # Client connections
+      - "8224:8222"  # HTTP monitoring
+    volumes:
+      - ./config:/nats/config
+      - ./certs:/nats/config/certs
+      - nats-cluster-1-data:/nats/data
+    environment:
+      - CONFIG_FILE=/nats/config/cluster.conf
+      - SERVER_ID=1
+      - CLUSTER_PASSWORD=change_me_in_production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/varz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - hybridpipe-network
+    profiles:
+      - cluster
+
+  nats-cluster-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NATS_VERSION: v2.10.5
+    image: hybridpipe/nats:latest
+    container_name: hybridpipe-nats-cluster-2
+    ports:
+      - "4225:4222"  # Client connections
+      - "8225:8222"  # HTTP monitoring
+    volumes:
+      - ./config:/nats/config
+      - ./certs:/nats/config/certs
+      - nats-cluster-2-data:/nats/data
+    environment:
+      - CONFIG_FILE=/nats/config/cluster.conf
+      - SERVER_ID=2
+      - CLUSTER_PASSWORD=change_me_in_production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/varz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - hybridpipe-network
+    profiles:
+      - cluster
+
+  nats-cluster-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NATS_VERSION: v2.10.5
+    image: hybridpipe/nats:latest
+    container_name: hybridpipe-nats-cluster-3
+    ports:
+      - "4226:4222"  # Client connections
+      - "8226:8222"  # HTTP monitoring
+    volumes:
+      - ./config:/nats/config
+      - ./certs:/nats/config/certs
+      - nats-cluster-3-data:/nats/data
+    environment:
+      - CONFIG_FILE=/nats/config/cluster.conf
+      - SERVER_ID=3
+      - CLUSTER_PASSWORD=change_me_in_production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/varz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - hybridpipe-network
+    profiles:
+      - cluster
+
+networks:
+  hybridpipe-network:
+    driver: bridge
+
+volumes:
+  nats-cluster-1-data:
+  nats-cluster-2-data:
+  nats-cluster-3-data:
