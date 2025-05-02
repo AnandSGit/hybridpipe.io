@@ -19,8 +19,8 @@ const (
 	KAFKA
 	// RABBITMQ - https://www.rabbitmq.com/
 	RABBITMQ
-	// ZEROMQ - https://zeromq.org/
-	ZEROMQ
+	// Reserved for future use
+	RESERVED1
 	// AMQP1 - https://www.amqp.org
 	AMQP1
 	// MQTT - http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
@@ -54,7 +54,8 @@ func init() {
 	RoutersMap[NATS] = reflect.TypeOf((*NatsPacket)(nil)).Elem()
 	RoutersMap[KAFKA] = reflect.TypeOf((*KafkaPacket)(nil)).Elem()
 	RoutersMap[RABBITMQ] = reflect.TypeOf((*RabbitPacket)(nil)).Elem()
-	RoutersMap[ZEROMQ] = reflect.TypeOf((*ZMQPacket)(nil)).Elem()
+	// Reserved for future use
+	// RoutersMap[RESERVED1] = nil
 	RoutersMap[AMQP1] = reflect.TypeOf((*AMQPPacket)(nil)).Elem()
 	RoutersMap[MQTT] = reflect.TypeOf((*MQTTPacket)(nil)).Elem()
 	RoutersMap[QPID] = reflect.TypeOf((*QpidPacket)(nil)).Elem()
@@ -132,7 +133,7 @@ func Encode(data any) ([]byte, error) {
 // For more control over deserialization, use DecodeWithOptions.
 func Decode(data []byte, target any) error {
 	// Use DecodeWithOptions which will automatically detect the format
-	return DecodeWithOptions(data, target)
+	return DecodeWithOptions(data, target, DefaultSerializationOptions())
 }
 
 // Enable registers a specific user-defined data type to be passed via HybridPipe.

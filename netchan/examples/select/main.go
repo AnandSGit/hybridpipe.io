@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/AnandSGit/hybridpipe.io/netchan"
+	"hybridpipe.io/netchan"
 )
 
 func main() {

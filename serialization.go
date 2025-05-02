@@ -38,14 +38,26 @@ type SerializationOptions struct {
 	// ProtobufMessageType is the fully qualified name of the protobuf message type.
 	// Only needed when using FormatProtobuf.
 	ProtobufMessageType string
+	// TypeRegistry is the registry to use for type conversions.
+	// If nil, the global registry will be used.
+	TypeRegistry *TypeRegistry
+	// ProtobufRegistry is the registry to use for Protocol Buffer messages.
+	// If nil, the global registry will be used.
+	ProtobufRegistry *ProtobufRegistry
+	// CrossLanguageCompatible indicates whether to use cross-language compatible serialization.
+	// This may limit the types that can be serialized.
+	CrossLanguageCompatible bool
 }
 
 // DefaultSerializationOptions returns the default serialization options.
 func DefaultSerializationOptions() SerializationOptions {
 	return SerializationOptions{
-		Format:           FormatGob, // Default to gob for backward compatibility
-		Compression:      false,
-		CompressionLevel: 6, // Default compression level
+		Format:                  FormatGob, // Default to gob for backward compatibility
+		Compression:             false,
+		CompressionLevel:        6, // Default compression level
+		TypeRegistry:            globalTypeRegistry,
+		ProtobufRegistry:        globalProtobufRegistry,
+		CrossLanguageCompatible: false,
 	}
 }
 
@@ -94,6 +106,20 @@ func EncodeWithOptions(data any, options SerializationOptions) ([]byte, error) {
 	var payload []byte
 	var err error
 
+	// Use the specified type registry or the global one
+	typeRegistry := options.TypeRegistry
+	if typeRegistry == nil {
+		typeRegistry = globalTypeRegistry
+	}
+
+	// Apply type conversion if needed
+	if typeRegistry != nil {
+		data, err = typeRegistry.ConvertForSerialization(data)
+		if err != nil {
+			return nil, fmt.Errorf("type conversion error: %w", err)
+		}
+	}
+
 	// Serialize the data based on the format
 	switch options.Format {
 	case FormatGob:
@@ -101,7 +127,16 @@ func EncodeWithOptions(data any, options SerializationOptions) ([]byte, error) {
 	case FormatJSON:
 		payload, err = encodeJSON(data)
 	case FormatProtobuf:
-		payload, err = encodeProtobuf(data)
+		// Use the enhanced Protocol Buffers encoder if a message type is specified
+		if options.ProtobufMessageType != "" {
+			protobufOptions := &ProtobufSerializationOptions{
+				MessageTypeName: options.ProtobufMessageType,
+				DynamicMessage:  true,
+			}
+			payload, err = encodeProtobufEnhanced(data, protobufOptions)
+		} else {
+			payload, err = encodeProtobuf(data)
+		}
 	case FormatMsgPack:
 		payload, err = encodeMsgPack(data)
 	default:
@@ -148,11 +183,26 @@ func EncodeWithOptions(data any, options SerializationOptions) ([]byte, error) {
 }
 
 // DecodeWithOptions deserializes data using information from the message.
-func DecodeWithOptions(data []byte, target any) error {
+// If options are provided, they will be used; otherwise, default options will be used.
+func DecodeWithOptions(data []byte, target any, options ...SerializationOptions) error {
+	// Use default options if none provided
+	var opts SerializationOptions
+	if len(options) > 0 {
+		opts = options[0]
+	} else {
+		opts = DefaultSerializationOptions()
+	}
+
+	// Use the specified type registry or the global one
+	typeRegistry := opts.TypeRegistry
+	if typeRegistry == nil {
+		typeRegistry = globalTypeRegistry
+	}
+
 	// Check if the data has our header format
 	if len(data) < HeaderSize {
 		// Try legacy format (pure gob) for backward compatibility
-		return Decode(data, target)
+		return legacyDecode(data, target)
 	}
 
 	// Read the header
@@ -165,7 +215,7 @@ func DecodeWithOptions(data []byte, target any) error {
 	// Validate the header
 	if magic != MessageMagic {
 		// Try legacy format (pure gob) for backward compatibility
-		return Decode(data, target)
+		return legacyDecode(data, target)
 	}
 
 	// Check version compatibility
@@ -189,18 +239,55 @@ func DecodeWithOptions(data []byte, target any) error {
 	}
 
 	// Deserialize based on the format
+	var result interface{}
+	var err error
+
 	switch format {
 	case FormatGob:
-		return decodeGob(payload, target)
+		err = decodeGob(payload, target)
 	case FormatJSON:
-		return decodeJSON(payload, target)
+		err = decodeJSON(payload, target)
 	case FormatProtobuf:
-		return decodeProtobuf(payload, target)
+		// Use the enhanced Protocol Buffers decoder if a message type is specified
+		if opts.ProtobufMessageType != "" {
+			protobufOptions := &ProtobufSerializationOptions{
+				MessageTypeName: opts.ProtobufMessageType,
+				DynamicMessage:  true,
+			}
+			err = decodeProtobufEnhanced(payload, target, protobufOptions)
+		} else {
+			err = decodeProtobuf(payload, target)
+		}
 	case FormatMsgPack:
-		return decodeMsgPack(payload, target)
+		err = decodeMsgPack(payload, target)
 	default:
 		return fmt.Errorf("unsupported serialization format: %d", format)
 	}
+
+	if err != nil {
+		return fmt.Errorf("deserialization error: %w", err)
+	}
+
+	// Apply type conversion if needed
+	if typeRegistry != nil && result != nil {
+		converted, err := typeRegistry.ConvertForDeserialization(result)
+		if err != nil {
+			return fmt.Errorf("type conversion error: %w", err)
+		}
+
+		// Set the converted value to the target
+		if converted != nil {
+			// TODO: Set the converted value to the target
+			// This requires reflection and is complex
+		}
+	}
+
+	return nil
+}
+
+// legacyDecode handles decoding of legacy format (pure gob) for backward compatibility.
+func legacyDecode(data []byte, target any) error {
+	return decodeGob(data, target)
 }
 
 // These functions are defined in hybridpipe.go:

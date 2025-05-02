@@ -1,6 +1,7 @@
 package hybridpipe
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -19,6 +20,12 @@ type NetChanPacket struct {
 	connected bool
 	// stopChans maps pipe names to their stop channels
 	stopChans map[string]chan struct{}
+	// ctx is the context for the NetChan system
+	ctx context.Context
+	// cancel is the cancel function for the context
+	cancel context.CancelFunc
+	// stats tracks message statistics
+	stats *MessageStats
 }
 
 // Connect establishes a connection to the NetChan system.
@@ -36,6 +43,16 @@ func (np *NetChanPacket) Connect() error {
 	}
 	if np.stopChans == nil {
 		np.stopChans = make(map[string]chan struct{})
+	}
+
+	// Create a context for the NetChan system
+	if np.ctx == nil {
+		np.ctx, np.cancel = context.WithCancel(context.Background())
+	}
+
+	// Initialize message statistics
+	if np.stats == nil {
+		np.stats = NewMessageStats()
 	}
 
 	np.connected = true
@@ -56,14 +73,32 @@ func (np *NetChanPacket) Dispatch(pipe string, data interface{}) error {
 	// Get or create the channel for this pipe
 	ch, err := np.getOrCreateChannel(pipe)
 	if err != nil {
+		if np.stats != nil {
+			np.stats.IncrementError()
+		}
 		return fmt.Errorf("failed to get or create channel for pipe %s: %w", pipe, err)
+	}
+
+	// Get timeout from config
+	timeout := HPipeConfig.NetChanF.NetChanTimeout
+	if timeout <= 0 {
+		timeout = 5000 // Default timeout: 5 seconds
 	}
 
 	// Send the message with a timeout
 	select {
 	case ch <- data:
+		// Update statistics
+		if np.stats != nil {
+			// Estimate message size (this is approximate)
+			var size uint64 = 64 // Base size
+			np.stats.IncrementSent(size)
+		}
 		return nil
-	case <-time.After(time.Duration(HPipeConfig.NetChanF.NetChanTimeout) * time.Millisecond):
+	case <-time.After(time.Duration(timeout) * time.Millisecond):
+		if np.stats != nil {
+			np.stats.IncrementError()
+		}
 		return fmt.Errorf("timeout sending message to pipe %s", pipe)
 	}
 }
@@ -81,6 +116,9 @@ func (np *NetChanPacket) Accept(pipe string, fn Process) error {
 	// Get or create the channel for this pipe
 	ch, err := np.getOrCreateChannel(pipe)
 	if err != nil {
+		if np.stats != nil {
+			np.stats.IncrementError()
+		}
 		return fmt.Errorf("failed to get or create channel for pipe %s: %w", pipe, err)
 	}
 
@@ -97,11 +135,20 @@ func (np *NetChanPacket) Accept(pipe string, fn Process) error {
 			select {
 			case <-stopChan:
 				return
+			case <-np.ctx.Done():
+				return
 			case msg, ok := <-ch:
 				if !ok {
 					// Channel closed
 					log.Printf("Channel for pipe %s closed", pipe)
 					return
+				}
+
+				// Update statistics
+				if np.stats != nil {
+					// Estimate message size (this is approximate)
+					var size uint64 = 64 // Base size
+					np.stats.IncrementReceived(size)
 				}
 
 				// Get the handler with read lock
@@ -110,8 +157,18 @@ func (np *NetChanPacket) Accept(pipe string, fn Process) error {
 				np.mutex.RUnlock()
 
 				if exists {
-					// Process the message
-					handler(msg)
+					// Process the message with panic recovery
+					func() {
+						defer func() {
+							if r := recover(); r != nil {
+								log.Printf("Recovered from panic in handler for pipe %s: %v", pipe, r)
+								if np.stats != nil {
+									np.stats.IncrementError()
+								}
+							}
+						}()
+						handler(msg)
+					}()
 				}
 			}
 		}
@@ -167,6 +224,11 @@ func (np *NetChanPacket) Close() {
 	}
 	np.mutex.RUnlock()
 
+	// Cancel the context to signal all goroutines to stop
+	if np.cancel != nil {
+		np.cancel()
+	}
+
 	// Lock for thread safety
 	np.mutex.Lock()
 	defer np.mutex.Unlock()
@@ -177,12 +239,24 @@ func (np *NetChanPacket) Close() {
 		log.Printf("Signaled stop for pipe %s", pipe)
 	}
 
+	// Close all channels
+	for pipe := range np.channels {
+		// We can't directly close the channel as it might be used by other goroutines
+		// Instead, we'll just remove it from the map
+		log.Printf("Removing channel for pipe %s", pipe)
+	}
+
 	// Clear the maps
 	np.channels = make(map[string]chan interface{})
 	np.handlers = make(map[string]Process)
 	np.stopChans = make(map[string]chan struct{})
 
+	// Reset connection state
 	np.connected = false
+
+	// Create a new context for future use
+	np.ctx, np.cancel = context.WithCancel(context.Background())
+
 	log.Printf("Closed NetChan connections")
 }
 
@@ -210,4 +284,37 @@ func (np *NetChanPacket) getOrCreateChannel(pipe string) (chan interface{}, erro
 	np.mutex.Unlock()
 
 	return ch, nil
+}
+
+// GetStats returns the message statistics.
+func (np *NetChanPacket) GetStats() *MessageStats {
+	return np.stats
+}
+
+// ResetStats resets the message statistics.
+func (np *NetChanPacket) ResetStats() {
+	if np.stats != nil {
+		np.stats.Reset()
+	}
+}
+
+// GetChannelCount returns the number of active channels.
+func (np *NetChanPacket) GetChannelCount() int {
+	np.mutex.RLock()
+	defer np.mutex.RUnlock()
+	return len(np.channels)
+}
+
+// GetSubscriptionCount returns the number of active subscriptions.
+func (np *NetChanPacket) GetSubscriptionCount() int {
+	np.mutex.RLock()
+	defer np.mutex.RUnlock()
+	return len(np.handlers)
+}
+
+// IsConnected returns whether the NetChan system is connected.
+func (np *NetChanPacket) IsConnected() bool {
+	np.mutex.RLock()
+	defer np.mutex.RUnlock()
+	return np.connected
 }

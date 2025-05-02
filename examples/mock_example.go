@@ -1,4 +1,4 @@
-package main
+package examples
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ type SensorData struct {
 	Timestamp   time.Time
 }
 
-func main() {
+func MockExample() {
 	// Register the custom data type
 	hp.Enable(SensorData{})
 
