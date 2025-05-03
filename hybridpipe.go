@@ -4,142 +4,86 @@
 package hybridpipe
 
 import (
-	"bytes"
 	"encoding/gob"
-	"fmt"
 	"log"
-	"reflect"
+
+	// Import all protocol implementations
+	"hybridpipe.io/core"
+	_ "hybridpipe.io/protocols/amqp"
+	_ "hybridpipe.io/protocols/kafka"
+	_ "hybridpipe.io/protocols/mock"
+	_ "hybridpipe.io/protocols/mqtt"
+	_ "hybridpipe.io/protocols/nats"
+	_ "hybridpipe.io/protocols/netchan"
+	_ "hybridpipe.io/protocols/nsq"
+	_ "hybridpipe.io/protocols/qpid"
+	_ "hybridpipe.io/protocols/rabbitmq"
+	_ "hybridpipe.io/protocols/redis"
+	_ "hybridpipe.io/protocols/tcp"
 )
 
 // Broker types - Users can use these constants to select their communication medium
 // when calling the DeployRouter function.
 const (
 	// NATS - https://nats.io/
-	NATS = iota
+	NATS = core.NATS
 	// KAFKA - https://kafka.apache.org/
-	KAFKA
+	KAFKA = core.KAFKA
 	// RABBITMQ - https://www.rabbitmq.com/
-	RABBITMQ
+	RABBITMQ = core.RABBITMQ
 	// Reserved for future use
-	RESERVED1
+	RESERVED1 = core.RESERVED1
 	// AMQP1 - https://www.amqp.org
-	AMQP1
+	AMQP1 = core.AMQP1
 	// MQTT - http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
-	MQTT
+	MQTT = core.MQTT
 	// QPID - https://qpid.apache.org/
-	QPID
+	QPID = core.QPID
 	// NSQ - https://nsq.io/
-	NSQ
+	NSQ = core.NSQ
 	// TCP - Direct TCP/IP communication
-	TCP
+	TCP = core.TCP
 	// REDIS - https://redis.io/
-	REDIS
+	REDIS = core.REDIS
 	// NETCHAN - Go channels over network
-	NETCHAN
+	NETCHAN = core.NETCHAN
 	// MOCK - In-memory mock implementation for testing
-	MOCK
+	MOCK = core.MOCK
 )
 
-// RoutersMap defines Broker or Router Registry for Pipe creation.
-// It maps broker types to their corresponding implementation types.
-var RoutersMap = make(map[int]reflect.Type)
-
-// Initialize the Register Map with all supported interfaces
+// Initialize the system
 func init() {
 	// Initialize configuration
-	if err := ReadConfig(); err != nil {
+	if err := core.ReadConfig(); err != nil {
 		log.Printf("Warning: Failed to read configuration: %v", err)
 	}
-
-	// Register all supported messaging implementations
-	RoutersMap[NATS] = reflect.TypeOf((*NatsPacket)(nil)).Elem()
-	RoutersMap[KAFKA] = reflect.TypeOf((*KafkaPacket)(nil)).Elem()
-	RoutersMap[RABBITMQ] = reflect.TypeOf((*RabbitPacket)(nil)).Elem()
-	// Reserved for future use
-	// RoutersMap[RESERVED1] = nil
-	RoutersMap[AMQP1] = reflect.TypeOf((*AMQPPacket)(nil)).Elem()
-	RoutersMap[MQTT] = reflect.TypeOf((*MQTTPacket)(nil)).Elem()
-	RoutersMap[QPID] = reflect.TypeOf((*QpidPacket)(nil)).Elem()
-	RoutersMap[NSQ] = reflect.TypeOf((*NSQPacket)(nil)).Elem()
-	RoutersMap[TCP] = reflect.TypeOf((*TCPPacket)(nil)).Elem()
-	RoutersMap[REDIS] = reflect.TypeOf((*RedisPacket)(nil)).Elem()
-	RoutersMap[NETCHAN] = reflect.TypeOf((*NetChanPacket)(nil)).Elem()
-	RoutersMap[MOCK] = reflect.TypeOf((*MockPacket)(nil)).Elem()
 }
 
 // HybridPipe defines the interface for all messaging implementations.
 // Any messaging system implementation must satisfy this interface.
-type HybridPipe interface {
-	// Connect establishes a connection to the messaging system.
-	Connect() error
-
-	// Dispatch sends a message to the specified pipe.
-	Dispatch(pipe string, data any) error
-
-	// Accept subscribes to messages from the specified pipe and processes them with the provided function.
-	Accept(pipe string, fn Process) error
-
-	// Remove unsubscribes from the specified pipe.
-	Remove(pipe string) error
-
-	// Close terminates the connection to the messaging system.
-	Close()
-}
+type HybridPipe = core.HybridPipe
 
 // Process defines the callback function that should be called when a client receives a message.
-type Process = func(data any)
+type Process = core.Process
 
 // DeployRouter creates and connects to the specified broker/router for communication.
 // It returns a connected HybridPipe interface for the requested messaging system.
 func DeployRouter(brokerType int) (HybridPipe, error) {
-	// Validate broker type
-	if _, exists := RoutersMap[brokerType]; !exists {
-		return nil, fmt.Errorf("unsupported broker type: %d", brokerType)
-	}
-
-	// Special handling for MOCK broker type
-	if brokerType == MOCK {
-		// Create a new MockPacket with a default name
-		mock := NewMockPacket("default")
-
-		// Connect to the mock messaging system
-		if err := mock.Connect(); err != nil {
-			return nil, fmt.Errorf("failed to connect to mock messaging system: %w", err)
-		}
-
-		return mock, nil
-	}
-
-	// Create a new instance of the requested broker implementation
-	pipe := reflect.New(RoutersMap[brokerType]).Interface().(HybridPipe)
-
-	// Connect to the messaging system
-	if err := pipe.Connect(); err != nil {
-		return nil, fmt.Errorf("failed to connect to messaging system: %w", err)
-	}
-
-	return pipe, nil
+	return core.DeployRouter(brokerType)
 }
 
 // Encode converts user-defined data (to be transmitted) into a byte stream.
 // It uses the default serialization format (gob for backward compatibility).
+// For more control over serialization, use EncodeWithOptions.
 func Encode(data any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(data); err != nil {
-		return nil, fmt.Errorf("encoding error: %w", err)
-	}
-	return buf.Bytes(), nil
+	return core.Encode(data)
 }
 
 // Decode converts a received byte stream back into user-defined interface data.
+// It automatically detects the serialization format used.
+// For more control over deserialization, use DecodeWithOptions.
 func Decode(data []byte, target any) error {
-	buf := bytes.NewBuffer(data)
-	dec := gob.NewDecoder(buf)
-	if err := dec.Decode(target); err != nil {
-		return fmt.Errorf("decoding error: %w", err)
-	}
-	return nil
+	return core.Decode(data, target)
 }
 
 // Enable registers a specific user-defined data type to be passed via HybridPipe.
@@ -147,4 +91,16 @@ func Decode(data []byte, target any) error {
 // Note: This is only needed for gob encoding, not for other formats.
 func Enable(dataType any) {
 	gob.Register(dataType)
+}
+
+// ProcessWrapper wraps a Process function to handle interface{} to []byte conversion.
+// This is needed for backward compatibility with the old protocol implementations.
+func ProcessWrapper(fn func(any)) Process {
+	return core.ProcessWrapper(fn)
+}
+
+// LegacyProcessWrapper wraps a Process function to handle []byte to interface{} conversion.
+// This is needed for backward compatibility with the old protocol implementations.
+func LegacyProcessWrapper(fn Process) func(any) {
+	return core.LegacyProcessWrapper(fn)
 }

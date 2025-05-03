@@ -223,6 +223,34 @@ func GetConfig() Config {
 	return globalConfig
 }
 
+// GetProtocolConfig returns the protocol-specific configuration for the specified protocol.
+func GetProtocolConfig(protocol int) (interface{}, error) {
+	switch protocol {
+	case KAFKA:
+		return GetKafkaConfig(), nil
+	case NATS:
+		return GetNATSConfig(), nil
+	case RABBITMQ:
+		return GetRabbitMQConfig(), nil
+	case AMQP1:
+		return GetConfig().AMQP1, nil
+	case MQTT:
+		return GetMQTTConfig(), nil
+	case QPID:
+		return GetQpidConfig(), nil
+	case NSQ:
+		return GetNSQConfig(), nil
+	case TCP:
+		return GetTCPConfig(), nil
+	case REDIS:
+		return GetRedisConfig(), nil
+	case NETCHAN:
+		return GetNetChanConfig(), nil
+	default:
+		return nil, fmt.Errorf("unsupported protocol: %d", protocol)
+	}
+}
+
 // SetConfig sets the global configuration.
 func SetConfig(config Config) {
 	configMutex.Lock()
