@@ -1,0 +1,281 @@
+# HybridPipe.io
+
+*Version: 1.0.0 (April 19, 2025)*
+
+HybridPipe.io is a unified messaging interface for various message brokers and communication protocols. It enables seamless communication between microservices or individual processes via different messaging systems like Kafka, NATS, RabbitMQ, ZeroMQ, AMQP 1.0, MQTT, and more.
+
+## 🌟 Features
+
+- **Protocol Agnostic**: Use the same API regardless of the underlying messaging system
+- **Multiple Protocols**: Support for NATS, Kafka, RabbitMQ, AMQP 1.0, MQTT, NSQ, TCP/IP, Redis, and more
+- **Language-Agnostic Serialization**: Communicate between applications written in different languages
+- **Tracing and Monitoring**: Built-in support for distributed tracing and metrics collection
+- **NetChan**: Go channels over network for seamless inter-process communication
+- **Mock Implementation**: In-memory implementation for testing without external dependencies
+
+## 📋 Table of Contents
+
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Supported Protocols](#-supported-protocols)
+- [Architecture](#-architecture)
+- [Examples](#-examples)
+- [Configuration](#-configuration)
+- [Advanced Usage](#-advanced-usage)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+## 📥 Installation
+
+```bash
+go get github.com/AnandSGit/hybridpipe.io
+```
+
+## 🚀 Quick Start
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    
+    hp "github.com/AnandSGit/hybridpipe.io"
+)
+
+func main() {
+    // Register custom types (only needed for gob encoding)
+    type Person struct {
+        Name string
+        Age  int
+    }
+    hp.Enable(Person{})
+    
+    // Create a router (e.g., NATS)
+    router, err := hp.DeployRouter(hp.NATS)
+    if err != nil {
+        log.Fatalf("Failed to create router: %v", err)
+    }
+    defer router.Close()
+    
+    // Subscribe to a pipe
+    err = router.Accept("example.pipe", func(data any) {
+        if person, ok := data.(Person); ok {
+            fmt.Printf("Received person: %s, %d years old\n", person.Name, person.Age)
+        }
+    })
+    if err != nil {
+        log.Fatalf("Failed to subscribe: %v", err)
+    }
+    
+    // Send a message
+    person := Person{Name: "John Doe", Age: 30}
+    err = router.Dispatch("example.pipe", person)
+    if err != nil {
+        log.Fatalf("Failed to send message: %v", err)
+    }
+    
+    // Keep the program running
+    select {}
+}
+```
+
+## 🔌 Supported Protocols
+
+| Protocol | Description | Best For |
+|----------|-------------|----------|
+| **NATS** | Lightweight pub/sub messaging system | High-throughput, low-latency messaging |
+| **Kafka** | Distributed streaming platform | High-throughput, durable messaging |
+| **RabbitMQ** | Message broker implementing AMQP | Reliable messaging with complex routing |
+| **AMQP 1.0** | Advanced Message Queuing Protocol | Enterprise messaging |
+| **MQTT** | Lightweight pub/sub for IoT | IoT and mobile applications |
+| **NSQ** | Realtime distributed messaging platform | Simple, distributed messaging |
+| **TCP/IP** | Direct TCP/IP communication | Custom protocols, direct communication |
+| **Redis** | In-memory data structure store | Simple pub/sub, caching integration |
+| **NetChan** | Go channels over network | Go inter-process communication |
+| **Qpid** | Apache Qpid implementation | Enterprise integration |
+| **Mock** | In-memory implementation | Testing without external dependencies |
+
+## 🏗️ Architecture
+
+HybridPipe.io is built with a modular architecture:
+
+```
+hybridpipe.io/
+├── core/                  # Core interfaces and functionality
+├── protocols/             # Protocol implementations
+│   ├── amqp/              # AMQP 1.0 implementation
+│   ├── kafka/             # Kafka implementation
+│   ├── mqtt/              # MQTT implementation
+│   ├── nats/              # NATS implementation
+│   ├── netchan/           # NetChan implementation
+│   ├── nsq/               # NSQ implementation
+│   ├── qpid/              # Qpid implementation
+│   ├── rabbitmq/          # RabbitMQ implementation
+│   ├── redis/             # Redis implementation
+│   ├── tcp/               # TCP implementation
+│   └── mock/              # Mock implementation
+├── serialization/         # Serialization functionality
+├── tracing/               # Tracing functionality
+├── monitoring/            # Monitoring functionality
+└── middleware/            # Middleware components
+```
+
+The core of the system is the `HybridPipe` interface:
+
+```go
+type HybridPipe interface {
+    // Connect establishes a connection to the messaging system.
+    Connect() error
+
+    // Dispatch sends a message to the specified pipe.
+    Dispatch(pipe string, data any) error
+
+    // Accept subscribes to messages from the specified pipe and processes them with the provided function.
+    Accept(pipe string, fn Process) error
+
+    // Remove unsubscribes from the specified pipe.
+    Remove(pipe string) error
+
+    // Close terminates the connection to the messaging system.
+    Close()
+}
+```
+
+## 📝 Examples
+
+### Basic Usage
+
+```go
+// Create a router
+router, _ := hp.DeployRouter(hp.NATS)
+defer router.Close()
+
+// Subscribe to a pipe
+router.Accept("example.pipe", func(data any) {
+    fmt.Printf("Received: %v\n", data)
+})
+
+// Send a message
+router.Dispatch("example.pipe", "Hello, HybridPipe!")
+```
+
+### Using Different Protocols
+
+```go
+// Service A: Publishes events to Kafka for durability
+kafkaRouter, _ := hp.DeployRouter(hp.KAFKA)
+kafkaRouter.Dispatch("user.created", userData)
+
+// Service B: Uses NATS for real-time notifications
+natsRouter, _ := hp.DeployRouter(hp.NATS)
+natsRouter.Dispatch("notifications", notification)
+```
+
+### IoT Data Collection
+
+```go
+// IoT Gateway: Collects data from devices via MQTT
+mqttRouter, _ := hp.DeployRouter(hp.MQTT)
+mqttRouter.Accept("sensors/+/temperature", func(data any) {
+    // Process sensor data
+    // Forward to data processing pipeline
+    kafkaRouter.Dispatch("sensor-data", data)
+})
+```
+
+### NetChan Example
+
+```go
+// Create a NetChan adapter
+adapter, _ := hp.NewNetChanAdapter(10)
+
+// Get send and receive channels
+sendCh := adapter.SendChan("example-channel")
+recvCh := adapter.RecvChan("example-channel")
+
+// Send using Go channel syntax
+sendCh <- "Hello, NetChan!"
+
+// Receive using Go channel syntax
+msg := <-recvCh
+fmt.Println(msg)
+```
+
+## ⚙️ Configuration
+
+HybridPipe.io can be configured using a TOML configuration file:
+
+```toml
+[NATS]
+NServers = "localhost"
+NLPort = 4222
+
+[KAFKA]
+KServers = "localhost"
+KLPort = 9092
+
+[RABBITMQ]
+RServerPort = "amqp://guest:guest@localhost:5672/"
+
+# ... other protocol configurations
+```
+
+The configuration file can be placed in:
+- Current directory (`hybridpipe_db.toml`)
+- `/etc/hybridpipe/hybridpipe_db.toml`
+- `/opt/hybridpipe/config/hybridpipe_db.toml`
+- `$HOME/.config/hybridpipe/hybridpipe_db.toml`
+
+Or specified using the `HYBRIDPIPE_CONFIG` environment variable.
+
+## 🔧 Advanced Usage
+
+### Serialization Options
+
+```go
+// Create serialization options
+options := hp.SerializationOptions{
+    Format:      hp.FormatJSON,
+    Compression: true,
+}
+
+// Encode with options
+bytes, _ := hp.EncodeWithOptions(data, options)
+
+// Decode with options
+var result MyType
+hp.DecodeWithOptions(bytes, &result, options)
+```
+
+### Tracing and Monitoring
+
+```go
+// Create a tracer
+tracer, _ := hp.NewTracer(hp.TracerConfig{
+    ServiceName: "my-service",
+    Exporter: hp.ExporterConfig{
+        Type: "jaeger",
+    },
+})
+
+// Create a meter
+meter, _ := hp.NewMeter(hp.MeterConfig{
+    ServiceName: "my-service",
+})
+
+// Wrap a router with tracing and monitoring
+router, _ := hp.DeployRouter(hp.NATS)
+tracedRouter := hp.WrapRouterWithMetrics(router, tracer, meter)
+
+// Use the traced router
+tracedRouter.Dispatch("example.pipe", data)
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the Apache License 2.0 - see the LICENSE file for details.

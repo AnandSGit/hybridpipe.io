@@ -4,6 +4,7 @@
 package hybridpipe
 
 import (
+	"bytes"
 	"encoding/gob"
 	"fmt"
 	"log"
@@ -122,18 +123,23 @@ func DeployRouter(brokerType int) (HybridPipe, error) {
 
 // Encode converts user-defined data (to be transmitted) into a byte stream.
 // It uses the default serialization format (gob for backward compatibility).
-// For more control over serialization, use EncodeWithOptions.
 func Encode(data any) ([]byte, error) {
-	// Use the default serialization options (gob for backward compatibility)
-	return EncodeWithOptions(data, DefaultSerializationOptions())
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(data); err != nil {
+		return nil, fmt.Errorf("encoding error: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 // Decode converts a received byte stream back into user-defined interface data.
-// It automatically detects the serialization format used.
-// For more control over deserialization, use DecodeWithOptions.
 func Decode(data []byte, target any) error {
-	// Use DecodeWithOptions which will automatically detect the format
-	return DecodeWithOptions(data, target, DefaultSerializationOptions())
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	if err := dec.Decode(target); err != nil {
+		return fmt.Errorf("decoding error: %w", err)
+	}
+	return nil
 }
 
 // Enable registers a specific user-defined data type to be passed via HybridPipe.

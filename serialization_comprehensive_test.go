@@ -133,7 +133,7 @@ func TestSerializationFormatsComprehensive(t *testing.T) {
 
 			// Deserialize the data
 			var result Company
-			err = DecodeWithOptions(bytes, &result)
+			err = Decode(bytes, &result)
 			if err != nil {
 				t.Fatalf("Failed to decode data: %v", err)
 			}
@@ -198,7 +198,7 @@ func TestSerializationBackwardCompatibility(t *testing.T) {
 		}
 
 		var result1 LegacyData
-		err = DecodeWithOptions(bytes, &result1)
+		err = Decode(bytes, &result1)
 		if err != nil {
 			t.Fatalf("Failed to decode with new function: %v", err)
 		}
@@ -320,14 +320,14 @@ func TestSerializationPerformance(t *testing.T) {
 
 			// Warm up
 			var result PerformanceTestData
-			_ = DecodeWithOptions(data, &result)
+			_ = Decode(data, &result)
 
 			// Benchmark
 			start := time.Now()
 			iterations := 100
 			for i := 0; i < iterations; i++ {
 				var result PerformanceTestData
-				err := DecodeWithOptions(data, &result)
+				err := Decode(data, &result)
 				if err != nil {
 					t.Fatalf("Failed to decode: %v", err)
 				}
@@ -470,7 +470,7 @@ func TestJSONCompatibility(t *testing.T) {
 
 	// Deserialize with our system
 	var ourResult CrossLanguageData
-	err = DecodeWithOptions(completeMessage, &ourResult)
+	err = Decode(completeMessage, &ourResult)
 	if err != nil {
 		t.Fatalf("Failed to decode with our system: %v", err)
 	}
@@ -526,7 +526,7 @@ func TestCompressionEffectiveness(t *testing.T) {
 
 			// Verify we can decode the compressed data
 			var result []byte
-			err = DecodeWithOptions(compressedBytes, &result)
+			err = Decode(compressedBytes, &result)
 			if err != nil {
 				t.Fatalf("Failed to decode compressed data: %v", err)
 			}

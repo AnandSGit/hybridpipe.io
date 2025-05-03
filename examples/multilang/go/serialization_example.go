@@ -55,7 +55,7 @@ func demonstrateGob(message Message) {
 
 	// Deserialize the message
 	var gobResult Message
-	err = hp.DecodeWithOptions(gobBytes, &gobResult)
+	err = hp.Decode(gobBytes, &gobResult)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with GOB: %v", err)
 	}
@@ -82,7 +82,7 @@ func demonstrateJSON(message Message) {
 
 	// Deserialize the message
 	var jsonResult Message
-	err = hp.DecodeWithOptions(jsonBytes, &jsonResult)
+	err = hp.Decode(jsonBytes, &jsonResult)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with JSON: %v", err)
 	}
@@ -113,7 +113,7 @@ func demonstrateMessagePack(message Message) {
 
 	// Deserialize the message
 	var msgpackResult Message
-	err = hp.DecodeWithOptions(msgpackBytes, &msgpackResult)
+	err = hp.Decode(msgpackBytes, &msgpackResult)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with MessagePack: %v", err)
 	}

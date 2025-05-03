@@ -4,13 +4,15 @@ import (
 	"context"
 	"log"
 	"time"
+
+	"hybridpipe.io/core"
 )
 
 // TracingExample demonstrates how to use the tracing functionality
 func TracingExample() {
 	// Initialize the tracer
 	tracer, err := NewTracer(Config{
-		ServiceName: "example-service",
+		ServiceName:  "example-service",
 		SamplingRate: 0.1, // Sample 10% of messages
 		Exporter: ExporterConfig{
 			Type:     "console", // Use console exporter for demonstration
@@ -35,7 +37,7 @@ func TracingExample() {
 	}
 
 	// Create a HybridPipe router
-	router, err := DeployRouter(KAFKA)
+	router, err := core.DeployRouter(core.KAFKA)
 	if err != nil {
 		log.Fatalf("Failed to create router: %v", err)
 	}
@@ -44,7 +46,7 @@ func TracingExample() {
 	tracedRouter := WrapRouterWithMetrics(router, tracer, meter)
 
 	// Define a message handler with tracing
-	handleMessage := func(data interface{}) {
+	handleMessage := func(data any) {
 		log.Printf("Received message: %v", data)
 	}
 
@@ -56,7 +58,7 @@ func TracingExample() {
 
 	// Send a message
 	_, span := tracer.Start(context.Background(), "send-message")
-	message := map[string]interface{}{
+	message := map[string]any{
 		"content":   "Hello, world!",
 		"timestamp": time.Now().Unix(),
 	}

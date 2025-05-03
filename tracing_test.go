@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"hybridpipe.io/core"
 )
 
 // TestTracingBasic tests the basic tracing functionality
@@ -76,12 +78,18 @@ func TestTracingBasic(t *testing.T) {
 
 // mockRouter is a mock implementation of the HybridPipe interface for testing
 type mockRouter struct {
-	handlers map[string]Process
+	handlers map[string]func(any)
 }
 
 // Connect establishes a connection to the messaging system
 func (r *mockRouter) Connect() error {
-	r.handlers = make(map[string]Process)
+	r.handlers = make(map[string]func(any))
+	return nil
+}
+
+// Disconnect closes the connection to the messaging system
+func (r *mockRouter) Disconnect() error {
+	r.handlers = nil
 	return nil
 }
 
@@ -93,13 +101,41 @@ func (r *mockRouter) Dispatch(pipe string, data any) error {
 	return nil
 }
 
+// DispatchWithContext sends a message with context for cancellation and timeouts
+func (r *mockRouter) DispatchWithContext(ctx context.Context, pipe string, data any) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return r.Dispatch(pipe, data)
+	}
+}
+
 // Accept subscribes to messages from the specified pipe
-func (r *mockRouter) Accept(pipe string, fn Process) error {
+func (r *mockRouter) Accept(pipe string, fn func(any)) error {
 	if r.handlers == nil {
-		r.handlers = make(map[string]Process)
+		r.handlers = make(map[string]func(any))
 	}
 	r.handlers[pipe] = fn
 	return nil
+}
+
+// Subscribe registers a callback function to be called when messages arrive on the specified pipe
+func (r *mockRouter) Subscribe(pipe string, callback core.Process) error {
+	if r.handlers == nil {
+		r.handlers = make(map[string]func(any))
+	}
+	r.handlers[pipe] = func(data any) {
+		if bytes, ok := data.([]byte); ok {
+			_ = callback(bytes)
+		}
+	}
+	return nil
+}
+
+// SubscribeWithContext registers a callback with context for cancellation
+func (r *mockRouter) SubscribeWithContext(ctx context.Context, pipe string, callback core.Process) error {
+	return r.Subscribe(pipe, callback)
 }
 
 // Remove unsubscribes from the specified pipe
@@ -108,7 +144,17 @@ func (r *mockRouter) Remove(pipe string) error {
 	return nil
 }
 
+// Unsubscribe removes a subscription from the specified pipe
+func (r *mockRouter) Unsubscribe(pipe string) error {
+	return r.Remove(pipe)
+}
+
 // Close terminates the connection to the messaging system
-func (r *mockRouter) Close() {
-	r.handlers = nil
+func (r *mockRouter) Close() error {
+	return r.Disconnect()
+}
+
+// IsConnected returns true if the connection to the messaging system is active
+func (r *mockRouter) IsConnected() bool {
+	return r.handlers != nil
 }

@@ -39,7 +39,7 @@ func TestSerializationFormats(t *testing.T) {
 
 		// Deserialize
 		var result TestMessage
-		err = DecodeWithOptions(data, &result)
+		err = Decode(data, &result)
 		if err != nil {
 			t.Fatalf("Failed to deserialize with GOB: %v", err)
 		}
@@ -70,7 +70,7 @@ func TestSerializationFormats(t *testing.T) {
 
 		// Deserialize
 		var result TestMessage
-		err = DecodeWithOptions(data, &result)
+		err = Decode(data, &result)
 		if err != nil {
 			t.Fatalf("Failed to deserialize with JSON: %v", err)
 		}
@@ -101,7 +101,7 @@ func TestSerializationFormats(t *testing.T) {
 
 		// Deserialize
 		var result TestMessage
-		err = DecodeWithOptions(data, &result)
+		err = Decode(data, &result)
 		if err != nil {
 			t.Fatalf("Failed to deserialize with MessagePack: %v", err)
 		}
@@ -133,7 +133,7 @@ func TestSerializationFormats(t *testing.T) {
 
 		// Deserialize
 		var result TestMessage
-		err = DecodeWithOptions(data, &result)
+		err = Decode(data, &result)
 		if err != nil {
 			t.Fatalf("Failed to deserialize with compression: %v", err)
 		}

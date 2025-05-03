@@ -59,6 +59,15 @@ func (r *ProtobufRegistry) GetMessageType(name string) (protoreflect.MessageType
 	return messageType, exists
 }
 
+// GetMessageFactory returns the message factory for the given name.
+func (r *ProtobufRegistry) GetMessageFactory(name string) (func() proto.Message, bool) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	factory, exists := r.messageFactories[name]
+	return factory, exists
+}
+
 // CreateMessage creates a new instance of the message with the given name.
 func (r *ProtobufRegistry) CreateMessage(name string) (proto.Message, error) {
 	r.mutex.RLock()
@@ -471,5 +480,6 @@ func setFieldValue(field reflect.Value, value interface{}) error {
 	
 	return nil
 }
+
 
 
