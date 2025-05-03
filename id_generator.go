@@ -86,6 +86,11 @@ func (s *probabilitySampler) ShouldSample(traceID string, name string, attribute
 // alwaysOnSampler always samples traces
 type alwaysOnSampler struct{}
 
+// NewAlwaysOnSampler creates a new sampler that samples every trace
+func NewAlwaysOnSampler() Sampler {
+	return &alwaysOnSampler{}
+}
+
 // ShouldSample always returns true
 func (s *alwaysOnSampler) ShouldSample(traceID string, name string, attributes map[string]interface{}) bool {
 	return true
@@ -93,6 +98,11 @@ func (s *alwaysOnSampler) ShouldSample(traceID string, name string, attributes m
 
 // alwaysOffSampler never samples traces
 type alwaysOffSampler struct{}
+
+// NewAlwaysOffSampler creates a new sampler that never samples traces
+func NewAlwaysOffSampler() Sampler {
+	return &alwaysOffSampler{}
+}
 
 // ShouldSample always returns false
 func (s *alwaysOffSampler) ShouldSample(traceID string, name string, attributes map[string]interface{}) bool {

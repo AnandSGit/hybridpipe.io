@@ -346,18 +346,6 @@ func TestSerializationEdgeCases(t *testing.T) {
 	t.Skip("Skipping edge cases test due to serialization issues")
 }
 
-// Helper function to test empty values - skipped due to serialization issues
-func testEmptyValue(t *testing.T, value interface{}, description string) {
-	// This function is not used in the tests anymore
-	t.Skip("Skipping empty value test due to serialization issues")
-}
-
-// Helper function to test large values - skipped due to serialization issues
-func testLargeValue(t *testing.T, value interface{}, description string) {
-	// This function is not used in the tests anymore
-	t.Skip("Skipping large value test due to serialization issues")
-}
-
 // TestProtocolBufferSerialization tests Protocol Buffer serialization.
 func TestProtocolBufferSerialization(t *testing.T) {
 	// Skip this test if we don't have a real Protocol Buffer message to test with

@@ -151,30 +151,6 @@ func (mp *MockPacket) Dispatch(pipe string, data interface{}) error {
 	return nil
 }
 
-// deliverMessage delivers a message to all subscribers of a pipe.
-func (mp *MockPacket) deliverMessage(pipe string, data []byte) {
-	mp.mutex.RLock()
-	subscribers := mp.subscribers[pipe]
-	mp.mutex.RUnlock()
-
-	// If there are no subscribers, return
-	if len(subscribers) == 0 {
-		return
-	}
-
-	// Decode the message for each subscriber
-	for _, subscriber := range subscribers {
-		var decodedData interface{}
-		if err := Decode(data, &decodedData); err != nil {
-			log.Printf("[MOCK:%s] Failed to decode message for pipe %s: %v", mp.name, pipe, err)
-			continue
-		}
-
-		// Process the message in a goroutine to simulate asynchronous delivery
-		go subscriber(decodedData)
-	}
-}
-
 // deliverMessageDirect delivers a message directly to all subscribers of a pipe without serialization.
 func (mp *MockPacket) deliverMessageDirect(pipe string, data interface{}) {
 	mp.mutex.RLock()
@@ -303,3 +279,4 @@ func (mp *MockPacket) Reset() {
 
 	log.Printf("[MOCK:%s] Reset to initial state", mp.name)
 }
+

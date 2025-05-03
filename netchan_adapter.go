@@ -127,6 +127,12 @@ func (a *NetChanAdapter) GetRecvChan(pipe string) (<-chan interface{}, error) {
 		return nil, fmt.Errorf("failed to accept from pipe %s: %w", pipe, err)
 	}
 
+	// Start a goroutine to cleanup when the context is done
+	go func() {
+		<-pipeCtx.Done()
+		pipeCancel()
+	}()
+
 	// Store the channel and cancel function
 	a.mutex.Lock()
 	a.recvChans[pipe] = ch
@@ -164,9 +170,7 @@ func (a *NetChanAdapter) RemovePipe(pipe string) error {
 	}
 
 	// Delete the receive channel if it exists
-	if _, exists := a.recvChans[pipe]; exists {
-		delete(a.recvChans, pipe)
-	}
+	delete(a.recvChans, pipe)
 
 	// Delete the handler
 	delete(a.handlers, pipe)
@@ -209,3 +213,4 @@ func (a *NetChanAdapter) Close() error {
 func (a *NetChanAdapter) GetRouter() HybridPipe {
 	return a.router
 }
+

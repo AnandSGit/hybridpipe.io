@@ -241,8 +241,6 @@ type fileStorage struct {
 	config StorageConfig
 	// file is the file to store spans in
 	file string
-	// mu protects the file
-	mu sync.Mutex
 }
 
 // newFileStorage creates a new file storage

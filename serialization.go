@@ -269,7 +269,7 @@ func DecodeWithOptions(data []byte, target any, options ...SerializationOptions)
 	}
 
 	// Apply type conversion if needed
-	if typeRegistry != nil && result != nil {
+	if typeRegistry != nil {
 		converted, err := typeRegistry.ConvertForDeserialization(result)
 		if err != nil {
 			return fmt.Errorf("type conversion error: %w", err)
@@ -392,3 +392,4 @@ func decompressData(data []byte) ([]byte, error) {
 
 	return result.Bytes(), nil
 }
+
