@@ -1,0 +1,49 @@
+{
+  "common": {
+    "password": "this4now",
+    "validity": 3650,
+    "server_hostname": "hybridpipe-server",
+    "country": "US",
+    "state": "California",
+    "locality": "San Francisco",
+    "organization": "HybridPipe",
+    "organizational_unit": "Engineering",
+    "email": "admin@hybridpipe.io"
+  },
+  "protocols": {
+    "kafka": {
+      "enabled": true,
+      "prefix": "HYBRID.KAFKA.HOST",
+      "server_port": 9093,
+      "client_port": 9093
+    },
+    "nats": {
+      "enabled": true,
+      "prefix": "HYBRID.NATS.HOST",
+      "server_port": 4222,
+      "client_port": 4222
+    },
+    "rabbitmq": {
+      "enabled": true,
+      "prefix": "HYBRID.RABBITMQ.HOST",
+      "server_port": 5671,
+      "client_port": 5671
+    },
+    "redis": {
+      "enabled": true,
+      "prefix": "HYBRID.REDIS.HOST",
+      "server_port": 6379,
+      "client_port": 6379
+    },
+    "mqtt": {
+      "enabled": true,
+      "prefix": "HYBRID.MQTT.HOST",
+      "server_port": 8883,
+      "client_port": 8883
+    }
+  },
+  "output": {
+    "directory": "certs",
+    "log_file": "tls_generation.log"
+  }
+}
