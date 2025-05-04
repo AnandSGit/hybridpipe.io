@@ -9,7 +9,10 @@ import (
 	"hybridpipe.io/protocols/netchan"
 )
 
+// NetChanExample demonstrates the use of the NetChan protocol.
 func NetChanExample() {
+	fmt.Println("Starting NetChan example...")
+
 	// Create a new NetChan router
 	config := &core.NetChanConfig{
 		ChannelBufferSize: 10,
@@ -33,7 +36,7 @@ func NetChanExample() {
 		if err := core.Decode(data, &msg); err != nil {
 			return fmt.Errorf("failed to decode message: %w", err)
 		}
-		
+
 		// Send the message to the channel
 		receivedCh <- msg
 		return nil
@@ -74,4 +77,6 @@ func NetChanExample() {
 	// Print statistics
 	fmt.Printf("\nStatistics:\n")
 	fmt.Printf("Messages sent and received through NetChan\n")
+
+	fmt.Println("NetChan example completed successfully")
 }

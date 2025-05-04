@@ -1,0 +1,243 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>testutils: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">hybridpipe.io/testutils/testutils.go (96.7%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Package testutils provides utilities for testing the hybridpipe.io codebase.
+package testutils
+
+import (
+        "bytes"
+        "context"
+        "encoding/json"
+        "io"
+        "os"
+        "path/filepath"
+        "runtime"
+        "testing"
+        "time"
+
+        "github.com/stretchr/testify/assert"
+        "github.com/stretchr/testify/require"
+)
+
+// AssertEventually repeatedly calls the check function until it returns true or the timeout is reached.
+// It's useful for testing asynchronous code.
+func AssertEventually(t *testing.T, check func() bool, timeout time.Duration, interval time.Duration, msgAndArgs ...interface{}) <span class="cov8" title="1">{
+        t.Helper()
+        
+        deadline := time.Now().Add(timeout)
+        for time.Now().Before(deadline) </span><span class="cov8" title="1">{
+                if check() </span><span class="cov8" title="1">{
+                        return
+                }</span>
+                <span class="cov8" title="1">time.Sleep(interval)</span>
+        }
+        
+        <span class="cov0" title="0">assert.Fail(t, "Condition not met in time", msgAndArgs...)</span>
+}
+
+// WithTimeout runs the given function with a timeout.
+func WithTimeout(t *testing.T, timeout time.Duration, f func(ctx context.Context)) <span class="cov8" title="1">{
+        t.Helper()
+        
+        ctx, cancel := context.WithTimeout(context.Background(), timeout)
+        defer cancel()
+        
+        done := make(chan struct{})
+        go func() </span><span class="cov8" title="1">{
+                defer close(done)
+                f(ctx)
+        }</span>()
+        
+        <span class="cov8" title="1">select </span>{
+        case &lt;-done:<span class="cov8" title="1"></span>
+                // Function completed before timeout
+        case &lt;-time.After(timeout):<span class="cov0" title="0">
+                t.Fatalf("Test timed out after %v", timeout)</span>
+        }
+}
+
+// TempDir creates a temporary directory for testing.
+func TempDir(t *testing.T) string <span class="cov8" title="1">{
+        t.Helper()
+        
+        dir, err := os.MkdirTemp("", "hybridpipe-test-")
+        require.NoError(t, err)
+        
+        t.Cleanup(func() </span><span class="cov8" title="1">{
+                os.RemoveAll(dir)
+        }</span>)
+        
+        <span class="cov8" title="1">return dir</span>
+}
+
+// LoadTestData loads test data from the testdata directory.
+func LoadTestData(t *testing.T, name string) []byte <span class="cov8" title="1">{
+        t.Helper()
+        
+        _, filename, _, ok := runtime.Caller(0)
+        require.True(t, ok)
+        
+        testdataDir := filepath.Join(filepath.Dir(filename), "..", "testdata")
+        data, err := os.ReadFile(filepath.Join(testdataDir, name))
+        require.NoError(t, err)
+        
+        return data
+}</span>
+
+// JSONEqual asserts that two JSON strings are equal, ignoring formatting differences.
+func JSONEqual(t *testing.T, expected, actual string) <span class="cov8" title="1">{
+        t.Helper()
+        
+        var expectedJSON, actualJSON interface{}
+        
+        err := json.Unmarshal([]byte(expected), &amp;expectedJSON)
+        require.NoError(t, err, "Expected value is not valid JSON")
+        
+        err = json.Unmarshal([]byte(actual), &amp;actualJSON)
+        require.NoError(t, err, "Actual value is not valid JSON")
+        
+        assert.Equal(t, expectedJSON, actualJSON)
+}</span>
+
+// CaptureOutput captures stdout and stderr during the execution of f.
+func CaptureOutput(f func()) (stdout, stderr string) <span class="cov8" title="1">{
+        oldStdout := os.Stdout
+        oldStderr := os.Stderr
+        
+        rOut, wOut, _ := os.Pipe()
+        rErr, wErr, _ := os.Pipe()
+        
+        os.Stdout = wOut
+        os.Stderr = wErr
+        
+        outC := make(chan string)
+        errC := make(chan string)
+        
+        // Copy stdout
+        go func() </span><span class="cov8" title="1">{
+                var buf bytes.Buffer
+                io.Copy(&amp;buf, rOut)
+                outC &lt;- buf.String()
+        }</span>()
+        
+        // Copy stderr
+        <span class="cov8" title="1">go func() </span><span class="cov8" title="1">{
+                var buf bytes.Buffer
+                io.Copy(&amp;buf, rErr)
+                errC &lt;- buf.String()
+        }</span>()
+        
+        // Call the function
+        <span class="cov8" title="1">f()
+        
+        // Restore original stdout and stderr
+        wOut.Close()
+        wErr.Close()
+        os.Stdout = oldStdout
+        os.Stderr = oldStderr
+        
+        stdout = &lt;-outC
+        stderr = &lt;-errC
+        
+        return</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

@@ -5,7 +5,8 @@ import (
 	"log"
 	"time"
 
-	hp "hybridpipe.io"
+	"hybridpipe.io/core"
+	"hybridpipe.io/protocols/mock"
 )
 
 // Define a custom data type
@@ -17,24 +18,24 @@ type SensorData struct {
 }
 
 func MockExample() {
-	// Register the custom data type
-	hp.Enable(SensorData{})
+	// Register the custom data type with the serialization system
+	// This step is handled by the core package now
 
 	// Create a mock router
-	router, err := hp.DeployRouter(hp.MOCK)
-	if err != nil {
-		log.Fatalf("Failed to create mock router: %v", err)
-	}
+	router := mock.NewMockRouter()
 	defer router.Close()
 
 	fmt.Println("Connected to mock messaging system")
 
 	// Subscribe to a topic
-	err = router.Accept("sensors/temperature", func(data interface{}) {
-		if sensorData, ok := data.(SensorData); ok {
-			fmt.Printf("Received sensor data: Device %s, Temperature %.1f°C, Humidity %.1f%%, Time %s\n",
-				sensorData.DeviceID, sensorData.Temperature, sensorData.Humidity, sensorData.Timestamp.Format(time.RFC3339))
+	err := router.Subscribe("sensors/temperature", func(data []byte) error {
+		var sensorData SensorData
+		if err := core.Decode(data, &sensorData); err != nil {
+			return err
 		}
+		fmt.Printf("Received sensor data: Device %s, Temperature %.1f°C, Humidity %.1f%%, Time %s\n",
+			sensorData.DeviceID, sensorData.Temperature, sensorData.Humidity, sensorData.Timestamp.Format(time.RFC3339))
+		return nil
 	})
 	if err != nil {
 		log.Fatalf("Failed to subscribe: %v", err)
@@ -62,7 +63,7 @@ func MockExample() {
 	}
 
 	// Unsubscribe from the topic
-	err = router.Remove("sensors/temperature")
+	err = router.Unsubscribe("sensors/temperature")
 	if err != nil {
 		log.Fatalf("Failed to unsubscribe: %v", err)
 	}
