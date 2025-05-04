@@ -1,11 +1,12 @@
 package main
 
 import (
+	"encoding/gob"
 	"fmt"
 	"log"
 	"time"
 
-	hp "hybridpipe.io"
+	"hybridpipe.io/core"
 )
 
 // Define a message type
@@ -18,7 +19,7 @@ type Message struct {
 
 func main() {
 	// Register the message type for gob encoding
-	hp.Enable(Message{})
+	gob.Register(Message{})
 
 	// Create a message
 	message := Message{
@@ -41,12 +42,12 @@ func demonstrateGob(message Message) {
 	fmt.Println("\n=== GOB Serialization ===")
 
 	// Create serialization options for GOB
-	gobOptions := hp.SerializationOptions{
-		Format: hp.FormatGob,
+	gobOptions := &core.SerializationOptions{
+		Format: core.FormatGOB,
 	}
 
 	// Serialize the message
-	gobBytes, err := hp.EncodeWithOptions(message, gobOptions)
+	gobBytes, err := core.EncodeWithOptions(message, gobOptions)
 	if err != nil {
 		log.Fatalf("Failed to serialize with GOB: %v", err)
 	}
@@ -55,7 +56,7 @@ func demonstrateGob(message Message) {
 
 	// Deserialize the message
 	var gobResult Message
-	err = hp.Decode(gobBytes, &gobResult)
+	err = core.Decode(gobBytes, &gobResult)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with GOB: %v", err)
 	}
@@ -67,13 +68,13 @@ func demonstrateJSON(message Message) {
 	fmt.Println("\n=== JSON Serialization ===")
 
 	// Create serialization options for JSON
-	jsonOptions := hp.SerializationOptions{
-		Format:      hp.FormatJSON,
+	jsonOptions := &core.SerializationOptions{
+		Format:      core.FormatJSON,
 		Compression: true, // Enable compression
 	}
 
 	// Serialize the message
-	jsonBytes, err := hp.EncodeWithOptions(message, jsonOptions)
+	jsonBytes, err := core.EncodeWithOptions(message, jsonOptions)
 	if err != nil {
 		log.Fatalf("Failed to serialize with JSON: %v", err)
 	}
@@ -82,7 +83,7 @@ func demonstrateJSON(message Message) {
 
 	// Deserialize the message
 	var jsonResult Message
-	err = hp.Decode(jsonBytes, &jsonResult)
+	err = core.Decode(jsonBytes, &jsonResult)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with JSON: %v", err)
 	}
@@ -91,20 +92,20 @@ func demonstrateJSON(message Message) {
 
 	// Show the JSON representation
 	jsonOptions.Compression = false
-	plainJsonBytes, _ := hp.EncodeWithOptions(message, jsonOptions)
-	fmt.Printf("JSON representation: %s\n", plainJsonBytes[hp.HeaderSize:])
+	plainJsonBytes, _ := core.EncodeWithOptions(message, jsonOptions)
+	fmt.Printf("JSON representation: %s\n", string(plainJsonBytes))
 }
 
 func demonstrateMessagePack(message Message) {
 	fmt.Println("\n=== MessagePack Serialization ===")
 
 	// Create serialization options for MessagePack
-	msgpackOptions := hp.SerializationOptions{
-		Format: hp.FormatMsgPack,
+	msgpackOptions := &core.SerializationOptions{
+		Format: core.FormatMessagePack,
 	}
 
 	// Serialize the message
-	msgpackBytes, err := hp.EncodeWithOptions(message, msgpackOptions)
+	msgpackBytes, err := core.EncodeWithOptions(message, msgpackOptions)
 	if err != nil {
 		log.Fatalf("Failed to serialize with MessagePack: %v", err)
 	}
@@ -113,7 +114,7 @@ func demonstrateMessagePack(message Message) {
 
 	// Deserialize the message
 	var msgpackResult Message
-	err = hp.Decode(msgpackBytes, &msgpackResult)
+	err = core.Decode(msgpackBytes, &msgpackResult)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with MessagePack: %v", err)
 	}

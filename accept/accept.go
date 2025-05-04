@@ -152,17 +152,17 @@ func setupConsumer(wg *sync.WaitGroup) {
 		handler  dc.Process
 		topic    string
 	}{
-		{"AMQP", dc.AMQP1, AMQPHandler, "hybridpipe.test.amqp"},
-		{"NATS", dc.NATS, NATSHandler, "hybridpipe.test.nats"},
-		{"Kafka", dc.KAFKA, KafkaHandler, "hybridpipe.test.kafka"},
-		{"MQTT", dc.MQTT, MQTTHandler, "hybridpipe.test.mqtt"},
-		{"Qpid", dc.QPID, QpidHandler, "hybridpipe.test.qpid"},
-		{"RabbitMQ", dc.RABBITMQ, RabbitMQHandler, "hybridpipe.test.rabbitmq"},
-		{"NSQ", dc.NSQ, NSQHandler, "hybridpipe.test.nsq"},
-		{"TCP", dc.TCP, TCPHandler, "hybridpipe.test.tcp"},
-		{"Redis", dc.REDIS, RedisHandler, "hybridpipe.test.redis"},
-		// {"ZeroMQ", dc.RESERVED1, ZeroMQHandler, "hybridpipe.test.zmq"}, // Removed ZeroMQ support
-		{"Mock", dc.MOCK, MockHandler, "hybridpipe.test.mock"},
+		{"AMQP", dc.AMQP1, dc.ProcessWrapper(AMQPHandler), "hybridpipe.test.amqp"},
+		{"NATS", dc.NATS, dc.ProcessWrapper(NATSHandler), "hybridpipe.test.nats"},
+		{"Kafka", dc.KAFKA, dc.ProcessWrapper(KafkaHandler), "hybridpipe.test.kafka"},
+		{"MQTT", dc.MQTT, dc.ProcessWrapper(MQTTHandler), "hybridpipe.test.mqtt"},
+		{"Qpid", dc.QPID, dc.ProcessWrapper(QpidHandler), "hybridpipe.test.qpid"},
+		{"RabbitMQ", dc.RABBITMQ, dc.ProcessWrapper(RabbitMQHandler), "hybridpipe.test.rabbitmq"},
+		{"NSQ", dc.NSQ, dc.ProcessWrapper(NSQHandler), "hybridpipe.test.nsq"},
+		{"TCP", dc.TCP, dc.ProcessWrapper(TCPHandler), "hybridpipe.test.tcp"},
+		{"Redis", dc.REDIS, dc.ProcessWrapper(RedisHandler), "hybridpipe.test.redis"},
+		// {"ZeroMQ", dc.RESERVED1, dc.ProcessWrapper(ZeroMQHandler), "hybridpipe.test.zmq"}, // Removed ZeroMQ support
+		{"Mock", dc.MOCK, dc.ProcessWrapper(MockHandler), "hybridpipe.test.mock"},
 	}
 
 	// Connect to each protocol and subscribe to topics
@@ -179,7 +179,7 @@ func setupConsumer(wg *sync.WaitGroup) {
 		routers[p.name] = router
 
 		// Subscribe to topic
-		err = router.Accept(p.topic, p.handler)
+		err = router.Subscribe(p.topic, p.handler)
 		if err != nil {
 			log.Printf("Error subscribing to topic for %s: %v\n", p.name, err)
 			continue

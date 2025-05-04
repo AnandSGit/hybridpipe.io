@@ -1,11 +1,12 @@
 package examples
 
 import (
+	"encoding/gob"
 	"fmt"
 	"log"
 	"time"
 
-	hp "hybridpipe.io"
+	"hybridpipe.io/core"
 )
 
 // Define a custom type
@@ -28,8 +29,8 @@ type Address struct {
 
 func SerializationExample() {
 	// Register types for gob encoding
-	hp.Enable(Person{})
-	hp.Enable(Address{})
+	gob.Register(Person{})
+	gob.Register(Address{})
 
 	// Create a test person
 	person := Person{
@@ -60,12 +61,12 @@ func demonstrateGob(person Person) {
 	fmt.Println("\n=== Gob Serialization (Go-specific) ===")
 
 	// Create serialization options for Gob
-	options := hp.SerializationOptions{
-		Format: hp.FormatGob,
+	options := &core.SerializationOptions{
+		Format: core.FormatGOB,
 	}
 
 	// Serialize the person
-	bytes, err := hp.EncodeWithOptions(person, options)
+	bytes, err := core.EncodeWithOptions(person, options)
 	if err != nil {
 		log.Fatalf("Failed to serialize with Gob: %v", err)
 	}
@@ -74,7 +75,7 @@ func demonstrateGob(person Person) {
 
 	// Deserialize the person
 	var result Person
-	err = hp.DecodeWithOptions(bytes, &result, options)
+	err = core.DecodeWithOptions(bytes, &result, options)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with Gob: %v", err)
 	}
@@ -88,22 +89,22 @@ func demonstrateJSON(person Person) {
 	fmt.Println("\n=== JSON Serialization (Cross-language compatible) ===")
 
 	// Create serialization options for JSON
-	options := hp.SerializationOptions{
-		Format: hp.FormatJSON,
+	options := &core.SerializationOptions{
+		Format: core.FormatJSON,
 	}
 
 	// Serialize the person
-	bytes, err := hp.EncodeWithOptions(person, options)
+	bytes, err := core.EncodeWithOptions(person, options)
 	if err != nil {
 		log.Fatalf("Failed to serialize with JSON: %v", err)
 	}
 
 	fmt.Printf("Serialized size: %d bytes\n", len(bytes))
-	fmt.Printf("JSON content: %s\n", string(bytes[hp.HeaderSize:]))
+	fmt.Printf("JSON content: %s\n", string(bytes))
 
 	// Deserialize the person
 	var result Person
-	err = hp.DecodeWithOptions(bytes, &result, options)
+	err = core.DecodeWithOptions(bytes, &result, options)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with JSON: %v", err)
 	}
@@ -115,12 +116,12 @@ func demonstrateMessagePack(person Person) {
 	fmt.Println("\n=== MessagePack Serialization (Efficient and cross-language compatible) ===")
 
 	// Create serialization options for MessagePack
-	options := hp.SerializationOptions{
-		Format: hp.FormatMsgPack,
+	options := &core.SerializationOptions{
+		Format: core.FormatMessagePack,
 	}
 
 	// Serialize the person
-	bytes, err := hp.EncodeWithOptions(person, options)
+	bytes, err := core.EncodeWithOptions(person, options)
 	if err != nil {
 		log.Fatalf("Failed to serialize with MessagePack: %v", err)
 	}
@@ -129,7 +130,7 @@ func demonstrateMessagePack(person Person) {
 
 	// Deserialize the person
 	var result Person
-	err = hp.DecodeWithOptions(bytes, &result, options)
+	err = core.DecodeWithOptions(bytes, &result, options)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with MessagePack: %v", err)
 	}
@@ -147,20 +148,19 @@ func demonstrateCompression(person Person) {
 	fmt.Println("\n=== Compression ===")
 
 	// Create serialization options with compression
-	options := hp.SerializationOptions{
-		Format:           hp.FormatJSON,
-		Compression:      true,
-		CompressionLevel: 9, // Best compression
+	options := &core.SerializationOptions{
+		Format:      core.FormatJSON,
+		Compression: true,
 	}
 
 	// Serialize the person without compression
-	bytesUncompressed, err := hp.EncodeWithOptions(person, hp.SerializationOptions{Format: hp.FormatJSON})
+	bytesUncompressed, err := core.EncodeWithOptions(person, &core.SerializationOptions{Format: core.FormatJSON})
 	if err != nil {
 		log.Fatalf("Failed to serialize without compression: %v", err)
 	}
 
 	// Serialize the person with compression
-	bytesCompressed, err := hp.EncodeWithOptions(person, options)
+	bytesCompressed, err := core.EncodeWithOptions(person, options)
 	if err != nil {
 		log.Fatalf("Failed to serialize with compression: %v", err)
 	}
@@ -171,7 +171,7 @@ func demonstrateCompression(person Person) {
 
 	// Deserialize the person
 	var result Person
-	err = hp.DecodeWithOptions(bytesCompressed, &result, options)
+	err = core.DecodeWithOptions(bytesCompressed, &result, options)
 	if err != nil {
 		log.Fatalf("Failed to deserialize with compression: %v", err)
 	}
@@ -183,13 +183,12 @@ func demonstrateCrossLanguageCompatibility(person Person) {
 	fmt.Println("\n=== Cross-Language Compatibility ===")
 
 	// Create serialization options for cross-language compatibility
-	options := hp.SerializationOptions{
-		Format:                  hp.FormatJSON,
-		CrossLanguageCompatible: true,
+	options := &core.SerializationOptions{
+		Format: core.FormatJSON,
 	}
 
 	// Serialize the person
-	bytes, err := hp.EncodeWithOptions(person, options)
+	bytes, err := core.EncodeWithOptions(person, options)
 	if err != nil {
 		log.Fatalf("Failed to serialize with cross-language compatibility: %v", err)
 	}

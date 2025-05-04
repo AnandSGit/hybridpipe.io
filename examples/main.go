@@ -10,7 +10,7 @@ func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Please specify an example to run:")
 		fmt.Println("  mock - Run the mock messaging example")
-		fmt.Println("  netchan - Run the NetChan adapter example")
+		fmt.Println("  netchan - Run the NetChan example")
 		fmt.Println("  serialization - Run the serialization example")
 		os.Exit(1)
 	}
@@ -21,8 +21,8 @@ func main() {
 		fmt.Println("Running Mock Example...")
 		MockExample()
 	case "netchan":
-		fmt.Println("Running NetChan Adapter Example...")
-		NetChanAdapterExample()
+		fmt.Println("Running NetChan Example...")
+		NetChanExample()
 	case "serialization":
 		fmt.Println("Running Serialization Example...")
 		SerializationExample()
