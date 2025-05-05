@@ -1,4 +1,4 @@
-.PHONY: test test-short test-verbose test-race coverage coverage-html lint vet fmt clean
+.PHONY: test test-short test-verbose test-race coverage coverage-html lint vet fmt clean test-docker test-docker-coverage check-coverage
 
 # Default target
 all: lint test
@@ -61,7 +61,9 @@ fmt:
 clean:
 	@echo "Cleaning up..."
 	@rm -f coverage.out coverage.html
+	@rm -rf coverage
 	@go clean
+	@docker-compose -f docker-compose.test.yml down 2>/dev/null || true
 
 # Install test dependencies
 install-test-deps:
@@ -77,3 +79,30 @@ install-test-deps:
 generate-mocks:
 	@echo "Generating mocks..."
 	@go generate ./...
+
+# Run tests with Docker infrastructure
+test-docker:
+	@echo "Starting test infrastructure..."
+	@docker-compose -f docker-compose.test.yml up -d
+	@echo "Running tests..."
+	@go test ./...
+	@echo "Cleaning up..."
+	@docker-compose -f docker-compose.test.yml down
+
+# Run tests with Docker infrastructure and coverage
+test-docker-coverage:
+	@echo "Starting test infrastructure..."
+	@docker-compose -f docker-compose.test.yml up -d
+	@echo "Running tests with coverage..."
+	@mkdir -p coverage
+	@go test -coverprofile=coverage/coverage.out ./...
+	@go tool cover -func=coverage/coverage.out
+	@go tool cover -html=coverage/coverage.out -o coverage/coverage.html
+	@echo "Coverage report generated in coverage/coverage.html"
+	@echo "Cleaning up..."
+	@docker-compose -f docker-compose.test.yml down
+
+# Check test coverage against threshold
+check-coverage:
+	@echo "Checking test coverage against threshold 80%..."
+	@bash scripts/check_coverage.sh 80

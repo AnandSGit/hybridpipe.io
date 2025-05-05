@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  # MQTT Broker (Mosquitto)
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./test/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  # AMQP Broker (RabbitMQ)
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  # Kafka and Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    ports:
+      - "9092:9092"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  # NSQ
+  nsqlookupd:
+    image: nsqio/nsq
+    command: /nsqlookupd
+    ports:
+      - "4160:4160"
+      - "4161:4161"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4161/ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  nsqd:
+    image: nsqio/nsq
+    command: /nsqd --lookupd-tcp-address=nsqlookupd:4160
+    ports:
+      - "4150:4150"
+      - "4151:4151"
+    depends_on:
+      nsqlookupd:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4151/ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  # NATS
+  nats:
+    image: nats:2
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: "--http_port 8222"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8222/varz"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  # TCP Echo Server (for TCP protocol testing)
+  tcp-echo:
+    image: alpine
+    command: sh -c "apk add --no-cache socat && socat -v TCP-LISTEN:9000,fork EXEC:'/bin/cat'"
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9000"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+
+  # Qpid Broker
+  qpid:
+    image: scholzj/qpid-cpp:1.39.0
+    ports:
+      - "5672:5672"
+      - "8080:8080"
+    environment:
+      - QPID_ADMIN_USERNAME=admin
+      - QPID_ADMIN_PASSWORD=admin
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 5s
+      timeout: 10s
+      retries: 3

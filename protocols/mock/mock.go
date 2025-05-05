@@ -98,11 +98,17 @@ func (r *MockRouter) DispatchWithContext(ctx context.Context, pipe string, data 
 
 // Accept subscribes to messages from the specified pipe and processes them with the provided function.
 func (r *MockRouter) Accept(pipe string, fn func(any)) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
+	// Check if connected without holding the lock for the entire operation
+	r.mutex.RLock()
 	if !r.connected {
+		r.mutex.RUnlock()
 		return core.ErrNotConnected
+	}
+	r.mutex.RUnlock()
+
+	// Validate the callback
+	if fn == nil {
+		return core.ErrInvalidCallback
 	}
 
 	// Create a wrapper that converts the Process function to the expected type
@@ -111,11 +117,17 @@ func (r *MockRouter) Accept(pipe string, fn func(any)) error {
 		return nil
 	}
 
+	// Call Subscribe without holding the lock
 	return r.Subscribe(pipe, wrapper)
 }
 
 // Subscribe registers a callback function to be called when messages arrive on the specified pipe.
 func (r *MockRouter) Subscribe(pipe string, callback core.Process) error {
+	// Validate the callback
+	if callback == nil {
+		return core.ErrInvalidCallback
+	}
+
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 

@@ -31,6 +31,9 @@ var (
 	// ErrInvalidData is returned when invalid data is provided
 	ErrInvalidData = errors.New("invalid data")
 
+	// ErrInvalidCallback is returned when a nil callback is provided
+	ErrInvalidCallback = errors.New("invalid callback function")
+
 	// ErrTimeout is returned when an operation times out
 	ErrTimeout = errors.New("operation timed out")
 

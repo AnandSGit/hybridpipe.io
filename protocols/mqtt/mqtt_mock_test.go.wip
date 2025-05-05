@@ -1,0 +1,402 @@
+//go:build ignore
+// +build ignore
+
+package mqtt
+
+import (
+	"context"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"hybridpipe.io/core"
+	"hybridpipe.io/protocols/testutils"
+)
+
+// This file is a work in progress and is not included in normal test runs
+
+// mockMQTTClient is a mock implementation of the MQTT client interface.
+type mockMQTTClient struct {
+	connected      bool
+	subscriptions  map[string]interface{}
+	messageHandler func(client interface{}, msg interface{})
+	mockService    *testutils.MockExternalService
+	mutex          sync.RWMutex
+}
+
+// newMockMQTTClient creates a new mock MQTT client.
+func newMockMQTTClient(mockService *testutils.MockExternalService) *mockMQTTClient {
+	return &mockMQTTClient{
+		connected:     false,
+		subscriptions: make(map[string]interface{}),
+		mockService:   mockService,
+	}
+}
+
+// Connect connects the mock MQTT client.
+func (m *mockMQTTClient) Connect() error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.connected = true
+	return nil
+}
+
+// Disconnect disconnects the mock MQTT client.
+func (m *mockMQTTClient) Disconnect(quiesce uint) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.connected = false
+}
+
+// IsConnected returns whether the mock MQTT client is connected.
+func (m *mockMQTTClient) IsConnected() bool {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return m.connected
+}
+
+// Publish publishes a message to the specified topic.
+func (m *mockMQTTClient) Publish(topic string, qos byte, retained bool, payload interface{}) interface{} {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	
+	if !m.connected {
+		return &mockToken{err: core.ErrNotConnected}
+	}
+	
+	// Convert payload to bytes
+	var data []byte
+	switch p := payload.(type) {
+	case []byte:
+		data = p
+	case string:
+		data = []byte(p)
+	default:
+		return &mockToken{err: core.ErrInvalidData}
+	}
+	
+	// Publish to the mock service
+	err := m.mockService.Publish(topic, data)
+	return &mockToken{err: err}
+}
+
+// Subscribe subscribes to the specified topic.
+func (m *mockMQTTClient) Subscribe(topic string, qos byte, callback interface{}) interface{} {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	
+	if !m.connected {
+		return &mockToken{err: core.ErrNotConnected}
+	}
+	
+	// Store the subscription
+	m.subscriptions[topic] = callback
+	m.messageHandler = callback.(func(client interface{}, msg interface{}))
+	
+	// Subscribe to the mock service
+	err := m.mockService.Subscribe(topic, func(data []byte) error {
+		// Create a mock message
+		msg := &mockMessage{
+			topic:   topic,
+			payload: data,
+			qos:     qos,
+		}
+		
+		// Call the callback
+		m.messageHandler(m, msg)
+		return nil
+	})
+	
+	return &mockToken{err: err}
+}
+
+// Unsubscribe unsubscribes from the specified topic.
+func (m *mockMQTTClient) Unsubscribe(topics ...string) interface{} {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	
+	if !m.connected {
+		return &mockToken{err: core.ErrNotConnected}
+	}
+	
+	var lastErr error
+	for _, topic := range topics {
+		// Remove the subscription
+		delete(m.subscriptions, topic)
+		
+		// Unsubscribe from the mock service
+		if err := m.mockService.Unsubscribe(topic); err != nil {
+			lastErr = err
+		}
+	}
+	
+	return &mockToken{err: lastErr}
+}
+
+// mockToken is a mock implementation of the MQTT token interface.
+type mockToken struct {
+	err error
+}
+
+// Wait waits for the token to complete.
+func (t *mockToken) Wait() bool {
+	return true
+}
+
+// WaitTimeout waits for the token to complete with a timeout.
+func (t *mockToken) WaitTimeout(timeout time.Duration) bool {
+	return true
+}
+
+// Error returns the error associated with the token.
+func (t *mockToken) Error() error {
+	return t.err
+}
+
+// mockMessage is a mock implementation of the MQTT message interface.
+type mockMessage struct {
+	topic    string
+	payload  []byte
+	qos      byte
+	retained bool
+	dup      bool
+}
+
+// Duplicate returns whether the message is a duplicate.
+func (m *mockMessage) Duplicate() bool {
+	return m.dup
+}
+
+// Qos returns the QoS level of the message.
+func (m *mockMessage) Qos() byte {
+	return m.qos
+}
+
+// Retained returns whether the message is retained.
+func (m *mockMessage) Retained() bool {
+	return m.retained
+}
+
+// Topic returns the topic of the message.
+func (m *mockMessage) Topic() string {
+	return m.topic
+}
+
+// MessageID returns the message ID.
+func (m *mockMessage) MessageID() uint16 {
+	return 0
+}
+
+// Payload returns the payload of the message.
+func (m *mockMessage) Payload() []byte {
+	return m.payload
+}
+
+// Ack acknowledges the message.
+func (m *mockMessage) Ack() {
+	// No-op
+}
+
+// TestMQTTRouterWithMockService tests the MQTT router with a mock service.
+func TestMQTTRouterWithMockService(t *testing.T) {
+	// Create a mock external service
+	mockService := testutils.NewMockExternalService()
+	err := mockService.Start()
+	require.NoError(t, err, "Failed to start mock service")
+	defer mockService.Stop()
+	
+	// Create a mock MQTT client
+	mockClient := newMockMQTTClient(mockService)
+	
+	// Create a new MQTT router with the mock client
+	router := &Packet{
+		subscriptions: make(map[string]interface{}),
+		handlers:      make(map[string]interface{}),
+		config: &core.MQTTConfig{
+			MQTTBroker:         "tcp://localhost:1883",
+			MQTTClientID:       "test-client",
+			MQTTQoS:            1,
+			MQTTRetain:         false,
+			MQTTCleanSession:   true,
+			MQTTPublishTimeout: 10,
+			MQTTConnectTimeout: 10,
+		},
+	}
+	
+	// Set the mock client
+	router.client = mockClient
+	
+	// Test Connect
+	err = router.Connect()
+	require.NoError(t, err, "Connect should not return an error")
+	assert.True(t, router.IsConnected(), "Router should be connected after Connect()")
+	
+	// Test pipe name
+	pipeName := "test-pipe"
+	
+	// Test data
+	testData := "Hello, MQTT!"
+	
+	// Wait group for synchronization
+	var wg sync.WaitGroup
+	wg.Add(1)
+	
+	// Subscribe to the pipe
+	var receivedData []byte
+	err = router.Subscribe(pipeName, func(data []byte) error {
+		receivedData = data
+		wg.Done()
+		return nil
+	})
+	require.NoError(t, err, "Subscribe should not return an error")
+	
+	// Dispatch a message
+	err = router.Dispatch(pipeName, testData)
+	require.NoError(t, err, "Dispatch should not return an error")
+	
+	// Wait for the message to be received
+	waitTimeout := 5 * time.Second
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	
+	select {
+	case <-done:
+		// Message received
+	case <-time.After(waitTimeout):
+		t.Fatal("Timed out waiting for message")
+	}
+	
+	// Verify the received data
+	assert.NotNil(t, receivedData, "Received data should not be nil")
+	
+	// Unsubscribe from the pipe
+	err = router.Unsubscribe(pipeName)
+	require.NoError(t, err, "Unsubscribe should not return an error")
+	
+	// Test DispatchWithContext
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	wg.Add(1)
+	err = router.Subscribe(pipeName, func(data []byte) error {
+		receivedData = data
+		wg.Done()
+		return nil
+	})
+	require.NoError(t, err, "Subscribe should not return an error")
+	
+	err = router.DispatchWithContext(ctx, pipeName, testData)
+	require.NoError(t, err, "DispatchWithContext should not return an error")
+	
+	// Wait for the message to be received
+	done = make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	
+	select {
+	case <-done:
+		// Message received
+	case <-time.After(waitTimeout):
+		t.Fatal("Timed out waiting for message")
+	}
+	
+	// Test SubscribeWithContext
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel2()
+	
+	err = router.SubscribeWithContext(ctx2, "test-pipe-ctx", func(data []byte) error {
+		return nil
+	})
+	require.NoError(t, err, "SubscribeWithContext should not return an error")
+	
+	// Test Accept
+	wg.Add(1)
+	err = router.Accept("test-pipe-accept", func(data any) {
+		wg.Done()
+	})
+	require.NoError(t, err, "Accept should not return an error")
+	
+	err = router.Dispatch("test-pipe-accept", testData)
+	require.NoError(t, err, "Dispatch should not return an error")
+	
+	// Wait for the message to be received
+	done = make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	
+	select {
+	case <-done:
+		// Message received
+	case <-time.After(waitTimeout):
+		t.Fatal("Timed out waiting for message")
+	}
+	
+	// Test Remove (alias for Unsubscribe)
+	err = router.Remove("test-pipe-accept")
+	require.NoError(t, err, "Remove should not return an error")
+	
+	// Close the router
+	err = router.Close()
+	require.NoError(t, err, "Close should not return an error")
+	assert.False(t, router.IsConnected(), "Router should not be connected after Close()")
+}
+
+// TestMQTTRouterWithMockServiceErrors tests error handling in the MQTT router with a mock service.
+func TestMQTTRouterWithMockServiceErrors(t *testing.T) {
+	// Create a mock external service with errors
+	mockService := testutils.NewMockExternalService()
+	err := mockService.Start()
+	require.NoError(t, err, "Failed to start mock service")
+	mockService.SetErrorRate(100) // 100% error rate
+	defer mockService.Stop()
+	
+	// Create a mock MQTT client
+	mockClient := newMockMQTTClient(mockService)
+	
+	// Create a new MQTT router with the mock client
+	router := &Packet{
+		subscriptions: make(map[string]interface{}),
+		handlers:      make(map[string]interface{}),
+		config: &core.MQTTConfig{
+			MQTTBroker:         "tcp://localhost:1883",
+			MQTTClientID:       "test-client",
+			MQTTQoS:            1,
+			MQTTRetain:         false,
+			MQTTCleanSession:   true,
+			MQTTPublishTimeout: 10,
+			MQTTConnectTimeout: 10,
+		},
+	}
+	
+	// Set the mock client
+	router.client = mockClient
+	
+	// Test Connect
+	err = router.Connect()
+	require.NoError(t, err, "Connect should not return an error")
+	
+	// Test Dispatch with error
+	err = router.Dispatch("test-pipe", "test-data")
+	assert.Error(t, err, "Dispatch should return an error with 100% error rate")
+	
+	// Test Subscribe with error
+	err = router.Subscribe("test-pipe", func(data []byte) error { return nil })
+	assert.Error(t, err, "Subscribe should return an error with 100% error rate")
+	
+	// Test Unsubscribe with error
+	err = router.Unsubscribe("test-pipe")
+	assert.Error(t, err, "Unsubscribe should return an error with 100% error rate")
+	
+	// Close the router
+	err = router.Close()
+	require.NoError(t, err, "Close should not return an error")
+}
