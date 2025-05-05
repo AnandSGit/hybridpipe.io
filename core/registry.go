@@ -10,7 +10,7 @@ const (
 	NATS      = iota // NATS messaging system
 	KAFKA            // Apache Kafka
 	RABBITMQ         // RabbitMQ (AMQP 0.9.1)
-	RESERVED1        // Reserved for future use
+	RESERVED1        // Reserved for future use (previously ZeroMQ, now removed)
 	AMQP1            // AMQP 1.0
 	MQTT             // MQTT protocol
 	QPID             // Apache Qpid

@@ -93,7 +93,6 @@ HybridPipe provides a unified messaging interface for various message brokers an
 | [NSQ](https://nsq.io/) | ✅ Full | Realtime distributed messaging platform | Native library |
 | [Redis](https://redis.io/) | ✅ Full | In-memory data structure store | Native library |
 | [TCP/IP](https://en.wikipedia.org/wiki/Internet_protocol_suite) | ✅ Full | Direct TCP socket communication | Native library |
-| [ZeroMQ](https://zeromq.org/) | ✅ Full | Distributed messaging library | Native library |
 | [NetChan](https://github.com/AnandSGit/hybridpipe.io/netchan) | ✅ Full | Go channels over network | Native library |
 
 ## 📦 Installation
@@ -389,36 +388,7 @@ notification := map[string]interface{}{
 redisConn.Dispatch("notifications", notification)
 ```
 
-#### ZeroMQ Example
 
-```go
-// Connect to ZeroMQ
-zmqConn, err := hp.DeployRouter(hp.ZEROMQ)
-if err != nil {
-    log.Fatalf("Failed to connect to ZeroMQ: %v", err)
-}
-defer zmqConn.Close()
-
-// Define a message handler
-handleZMQMessage := func(data interface{}) {
-    if msg, ok := data.(map[string]interface{}); ok {
-        log.Printf("ZeroMQ message: %v (type: %v)",
-            msg["payload"], msg["type"])
-    }
-}
-
-// Subscribe to a topic
-zmqConn.Accept("commands", handleZMQMessage)
-
-// Send a message
-message := map[string]interface{}{
-    "type":    "command",
-    "payload": "restart",
-    "target":  "service-a",
-    "timestamp": time.Now().Unix(),
-}
-zmqConn.Dispatch("commands", message)
-```
 
 #### NetChan Example
 
@@ -493,9 +463,6 @@ defer redisConn.Close()
 tcpConn, _ := hp.DeployRouter(hp.TCP)
 defer tcpConn.Close()
 
-zmqConn, _ := hp.DeployRouter(hp.ZEROMQ)
-defer zmqConn.Close()
-
 netChanConn, _ := hp.DeployRouter(hp.NETCHAN)
 defer netChanConn.Close()
 
@@ -509,7 +476,6 @@ mqttConn.Dispatch("app.status", data)
 nsqConn.Dispatch("app.status", data)
 redisConn.Dispatch("app.status", data)
 tcpConn.Dispatch("app.status", data)
-zmqConn.Dispatch("app.status", data)
 netChanConn.Dispatch("app.status", data)
 ```
 
@@ -574,10 +540,10 @@ type HybridPipe interface {
 
 ```go
 const (
-    NATS = iota
+    NATS     = iota
     KAFKA
     RABBITMQ
-    ZEROMQ
+    RESERVED1       // Reserved for future use (previously ZeroMQ, now removed)
     AMQP1
     MQTT
     QPID
@@ -673,7 +639,7 @@ func publishOrder(order Order) {
 
 ## 📊 Implementation Status
 
-- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis, ZeroMQ, NetChan, Message Tracing and Monitoring, Language-Agnostic Serialization
+- **Fully Implemented**: Kafka, NATS, RabbitMQ, AMQP 1.0, Apache Qpid, MQTT, NSQ, TCP/IP, Redis, NetChan, Message Tracing and Monitoring, Language-Agnostic Serialization
 - **Partially Implemented**: None
 
 An embedded system deployable version of HybridPipe is under development in Rust.
@@ -811,7 +777,7 @@ For more details, see the [Tracing Documentation](TRACING_DOCUMENTATION.md).
   - **Native Channel Syntax**: Added support for using Go's native channel operators (`<-` and `->`) with NetChan
   - **Channel Wrapper**: Implemented a wrapper that provides Go channel semantics over the network
   - **Select Statement Support**: Full support for using NetChan with Go's select statement
-- **ZeroMQ Support**: Added full implementation of ZeroMQ protocol using zmq4 library
+- **ZeroMQ Support**: Removed (previously supported)
 - **NSQ Support**: Added full implementation of NSQ protocol using go-nsq client
 - **TCP/IP Support**: Added direct TCP/IP communication with both client and server modes
 - **Redis Support**: Added Redis pub/sub implementation using go-redis client

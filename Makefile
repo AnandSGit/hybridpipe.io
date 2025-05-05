@@ -34,7 +34,13 @@ coverage-html: coverage
 	@echo "Generating HTML coverage report..."
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Opening coverage report in browser..."
-	@start coverage.html
+	@if [ "$(shell uname)" = "Darwin" ]; then \
+		open coverage.html; \
+	elif [ "$(shell uname)" = "Linux" ]; then \
+		xdg-open coverage.html 2>/dev/null || echo "Coverage report generated at coverage.html"; \
+	else \
+		start coverage.html 2>/dev/null || echo "Coverage report generated at coverage.html"; \
+	fi
 
 # Run golangci-lint
 lint:

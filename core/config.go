@@ -134,6 +134,8 @@ type Config struct {
 		ConnectTimeout int    `toml:"NetChanConnectTimeout"`
 	} `toml:"NETCHAN"`
 
+	// Note: ZeroMQ configuration has been removed from the system
+
 	// Tracing configuration
 	Tracing struct {
 		Enabled          bool    `toml:"Enabled"`
@@ -246,6 +248,8 @@ func GetProtocolConfig(protocol int) (interface{}, error) {
 		return GetRedisConfig(), nil
 	case NETCHAN:
 		return GetNetChanConfig(), nil
+	case RESERVED1:
+		return nil, fmt.Errorf("ZeroMQ protocol has been removed from the system")
 	default:
 		return nil, fmt.Errorf("unsupported protocol: %d", protocol)
 	}

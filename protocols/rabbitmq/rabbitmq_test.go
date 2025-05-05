@@ -11,11 +11,33 @@ import (
 )
 
 func TestRabbitMQRouter(t *testing.T) {
-	t.Skip("Skipping RabbitMQ tests until the RabbitMQ protocol is fully implemented")
+	// Skip in short mode as this test requires a RabbitMQ server
+	if testing.Short() {
+		t.Skip("Skipping RabbitMQ tests in short mode")
+	}
 
-	// Skip the test for now
-	t.Skip("RabbitMQ protocol not implemented yet")
+	// Create a mock RabbitMQ config
+	config := &core.RabbitMQConfig{
+		RServerPort: "amqp://guest:guest@localhost:5672/",
+	}
 
+	// Create a new RabbitMQ router
+	router := New(config)
+
+	// Test the router
+	t.Run("RouterImplementsInterfaces", func(t *testing.T) {
+		testRouterImplementsInterfaces(t, router)
+	})
+
+	// Test connection methods without an actual server
+	t.Run("ConnectionMethods", func(t *testing.T) {
+		testConnectionMethods(t, router)
+	})
+
+	// Test error handling
+	t.Run("ErrorHandling", func(t *testing.T) {
+		testErrorHandling(t, router)
+	})
 }
 
 // testBasicOperations tests the basic operations of the RabbitMQ router.
@@ -64,6 +86,119 @@ func testBasicOperations(t *testing.T, router core.HybridPipe) {
 	// Unsubscribe from the pipe
 	err = router.Unsubscribe(pipeName)
 	require.NoError(t, err, "Failed to unsubscribe from pipe")
+}
+
+// testRouterImplementsInterfaces tests that the router implements the required interfaces.
+func testRouterImplementsInterfaces(t *testing.T, router *Packet) {
+	// Test that the router implements HybridPipe
+	var _ core.HybridPipe = router
+
+	// Test that the router implements ContextAwareHybridPipe
+	var _ core.ContextAwareHybridPipe = router
+}
+
+// testConnectionMethods tests the connection-related methods of the RabbitMQ router.
+func testConnectionMethods(t *testing.T, router *Packet) {
+	// Initially, the router should not be connected
+	assert.False(t, router.IsConnected(), "Router should not be connected initially")
+
+	// Test that Disconnect works even when not connected
+	err := router.Disconnect()
+	assert.NoError(t, err, "Disconnect should not return an error when not connected")
+
+	// Test that Close works even when not connected
+	err = router.Close()
+	assert.NoError(t, err, "Close should not return an error when not connected")
+}
+
+// testErrorHandling tests the error handling of the RabbitMQ router.
+func testErrorHandling(t *testing.T, router *Packet) {
+	// Test dispatching when not connected
+	err := router.Dispatch("test-pipe", "test-data")
+	assert.Error(t, err, "Dispatch should return an error when not connected")
+	assert.Equal(t, core.ErrNotConnected, err, "Dispatch should return ErrNotConnected when not connected")
+
+	// Test dispatching with context when not connected
+	ctx := context.Background()
+	err = router.DispatchWithContext(ctx, "test-pipe", "test-data")
+	assert.Error(t, err, "DispatchWithContext should return an error when not connected")
+	assert.Equal(t, core.ErrNotConnected, err, "DispatchWithContext should return ErrNotConnected when not connected")
+
+	// Test subscribing when not connected
+	err = router.Subscribe("test-pipe", func(data []byte) error {
+		return nil
+	})
+	assert.Error(t, err, "Subscribe should return an error when not connected")
+	assert.Equal(t, core.ErrNotConnected, err, "Subscribe should return ErrNotConnected when not connected")
+
+	// Test subscribing with context when not connected
+	err = router.SubscribeWithContext(ctx, "test-pipe", func(data []byte) error {
+		return nil
+	})
+	assert.Error(t, err, "SubscribeWithContext should return an error when not connected")
+	assert.Equal(t, core.ErrNotConnected, err, "SubscribeWithContext should return ErrNotConnected when not connected")
+
+	// Test unsubscribing when not connected
+	err = router.Unsubscribe("test-pipe")
+	assert.Error(t, err, "Unsubscribe should return an error when not connected")
+	assert.Equal(t, core.ErrNotConnected, err, "Unsubscribe should return ErrNotConnected when not connected")
+
+	// Test removing when not connected
+	err = router.Remove("test-pipe")
+	assert.Error(t, err, "Remove should return an error when not connected")
+	assert.Equal(t, core.ErrNotConnected, err, "Remove should return ErrNotConnected when not connected")
+}
+
+// TestRabbitMQAccept tests the Accept method of the RabbitMQ router.
+func TestRabbitMQAccept(t *testing.T) {
+	// Skip in short mode as this test requires a RabbitMQ server
+	if testing.Short() {
+		t.Skip("Skipping RabbitMQ Accept test in short mode")
+	}
+
+	// Create a mock RabbitMQ config
+	config := &core.RabbitMQConfig{
+		RServerPort: "amqp://guest:guest@localhost:5672/",
+	}
+
+	// Create a new RabbitMQ router
+	router := New(config)
+
+	// Test the Accept method
+	pipeName := "test-accept-pipe"
+
+	// Accept messages from the pipe
+	err := router.Accept(pipeName, func(data interface{}) {
+		// This function won't be called because we're not connected
+	})
+
+	// This should fail because we're not connected
+	assert.Error(t, err, "Accept should return an error when not connected")
+}
+
+// TestRabbitMQWithMockServer tests the RabbitMQ router with a mock server.
+func TestRabbitMQWithMockServer(t *testing.T) {
+	// Skip this test as it requires a mock RabbitMQ server
+	t.Skip("Skipping test that requires a mock RabbitMQ server")
+
+	// Create a mock RabbitMQ config
+	config := &core.RabbitMQConfig{
+		RServerPort: "amqp://guest:guest@localhost:5672/",
+	}
+
+	// Create a new RabbitMQ router
+	router := New(config)
+
+	// Connect to the mock server
+	err := router.Connect()
+	require.NoError(t, err, "Failed to connect to mock RabbitMQ server")
+	defer router.Close()
+
+	// Test basic operations
+	testBasicOperations(t, router)
+
+	// Test context-aware operations
+	testContextAwareOperations(t, router)
 }
 
 // testContextAwareOperations tests the context-aware operations of the RabbitMQ router.

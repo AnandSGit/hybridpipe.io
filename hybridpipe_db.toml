@@ -92,19 +92,7 @@ RedisCertFile = "/path/to/redis-client.pem"
 RedisKeyFile = "/path/to/redis-client.key"
 RedisCAFile = "/path/to/redis-ca.pem"
 
-[ZEROMQ]
-ZMQEndpoints = "tcp://localhost:5555,tcp://localhost:5556"
-ZMQPublishEndpoint = "tcp://*:5555"
-ZMQSubscribeEndpoint = "tcp://localhost:5555"
-ZMQSocketType = "PUB_SUB"
-ZMQHighWaterMark = 1000
-ZMQLinger = 1000
-ZMQConnectTimeout = 10
-ZMQIOThreads = 1
-ZMQSecurityMechanism = "NULL"
-ZMQCurveServerKey = ""
-ZMQCurvePublicKey = ""
-ZMQCurveSecretKey = ""
+# Note: ZeroMQ configuration has been removed from the system
 
 [NETCHAN]
 NetChanServer = "localhost"

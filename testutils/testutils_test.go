@@ -28,8 +28,19 @@ func TestAssertEventually(t *testing.T) {
 
 	// Test that AssertEventually fails when the condition never becomes true
 	t.Run("ConditionNeverTrue", func(t *testing.T) {
-		// Skip this test as it's hard to test failure cases
-		t.Skip("Skipping test for failure case")
+		// Create a testing.T that will fail
+		mockT := &testing.T{}
+
+		// Create a check function that always returns false
+		check := func() bool {
+			return false
+		}
+
+		// Call AssertEventually with a short timeout
+		AssertEventually(mockT, check, 100*time.Millisecond, 10*time.Millisecond)
+
+		// Verify that the test failed
+		assert.True(t, mockT.Failed(), "AssertEventually should fail when the condition never becomes true")
 	})
 }
 
@@ -45,8 +56,9 @@ func TestWithTimeout(t *testing.T) {
 
 	// Test that WithTimeout fails when the function takes too long
 	t.Run("TimeoutExpires", func(t *testing.T) {
-		// Skip this test as it's hard to test failure cases
-		t.Skip("Skipping test for failure case")
+		// We can't easily test the timeout case with a mock T
+		// because it would cause a panic, so we'll skip this test
+		t.Skip("Skipping timeout test as it's difficult to test without causing a panic")
 	})
 
 	// Test that WithTimeout passes context to the function
@@ -115,14 +127,24 @@ func TestJSONEqual(t *testing.T) {
 
 	// Test that JSONEqual fails when the JSON strings are not equal
 	t.Run("NotEqual", func(t *testing.T) {
-		// Skip this test as it's hard to test failure cases
-		t.Skip("Skipping test for failure case")
+		// Create a testing.T that will fail
+		mockT := &testing.T{}
+
+		// Call JSONEqual with different JSON strings
+		json1 := `{"name": "John", "age": 30}`
+		json2 := `{"name": "Jane", "age": 25}`
+
+		JSONEqual(mockT, json1, json2)
+
+		// Verify that the test failed
+		assert.True(t, mockT.Failed(), "JSONEqual should fail when the JSON strings are not equal")
 	})
 
 	// Test that JSONEqual fails when one of the strings is not valid JSON
 	t.Run("InvalidJSON", func(t *testing.T) {
-		// Skip this test as it's hard to test failure cases
-		t.Skip("Skipping test for failure case")
+		// We can't easily test the failure case with a mock T
+		// because it would cause a panic, so we'll skip this test
+		t.Skip("Skipping invalid JSON test as it's difficult to test without causing a panic")
 	})
 }
 
