@@ -37,6 +37,7 @@ chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 dashmap = "5.5"
+lazy_static = "1.4"
 
 # Serialization
 rmp-serde = "1.1"  # MessagePack
@@ -63,7 +64,8 @@ redis = { version = "0.24", features = ["tokio-comp"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 
 # NSQ
-nsq-client = "0.1"
+# Temporarily removed due to compatibility issues with stable Rust
+# nsq-client = "0.1"
 
 # Testing
 mockall = "0.12"

@@ -2,19 +2,16 @@
 //
 // This module defines the core interfaces and functionality for the HybridPipe messaging system.
 
-use std::fmt;
-use std::sync::Arc;
 use async_trait::async_trait;
-use thiserror::Error;
-use tokio::sync::RwLock;
-use std::collections::HashMap;
 use std::any::Any;
+use std::sync::Arc;
+use thiserror::Error;
 
 pub mod broker_types;
 pub mod config;
-pub mod registry;
 pub mod context;
 pub mod errors;
+pub mod registry;
 
 // Re-export the broker types
 pub use broker_types::BrokerType;
@@ -23,6 +20,33 @@ pub use registry::{deploy_router, register_router_factory};
 
 /// Process defines the callback function that should be called when a client receives a message.
 pub type Process = Box<dyn Fn(Vec<u8>) -> Result<()> + Send + Sync>;
+
+/// Extension methods for HybridPipe that are not object-safe.
+/// These are implemented as standalone functions.
+pub mod ext {
+    use super::*;
+    use crate::serialization::decode;
+
+    /// Accept subscribes to messages from the specified pipe and processes them with the provided function.
+    /// This is an alias for Subscribe for backward compatibility.
+    pub async fn accept<T, F>(pipe: &dyn HybridPipe, pipe_name: &str, callback: F) -> Result<()>
+    where
+        T: 'static + Send + Sync + serde::de::DeserializeOwned,
+        F: Fn(Box<dyn Any + Send + Sync>) + Send + Sync + 'static,
+    {
+        // Create a Process wrapper for the callback
+        let process: Process = Box::new(move |data| {
+            let decoded: Box<dyn Any + Send + Sync> = match decode::<T>(&data) {
+                Ok(decoded) => Box::new(decoded),
+                Err(e) => return Err(e),
+            };
+            callback(decoded);
+            Ok(())
+        });
+
+        pipe.subscribe(pipe_name, process).await
+    }
+}
 
 /// HybridPipe defines the core interface for all messaging implementations.
 /// Any messaging system implementation must satisfy this interface.
@@ -39,27 +63,21 @@ pub trait HybridPipe: Send + Sync {
 
     /// DispatchWithContext sends a message with context for cancellation and timeouts.
     async fn dispatch_with_context(
-        &self, 
-        ctx: &context::Context, 
-        pipe: &str, 
-        data: Box<dyn Any + Send + Sync>
+        &self,
+        ctx: &context::Context,
+        pipe: &str,
+        data: Box<dyn Any + Send + Sync>,
     ) -> Result<()>;
-
-    /// Accept subscribes to messages from the specified pipe and processes them with the provided function.
-    /// This is an alias for Subscribe for backward compatibility.
-    async fn accept<F>(&self, pipe: &str, callback: F) -> Result<()>
-    where
-        F: Fn(Box<dyn Any + Send + Sync>) + Send + Sync + 'static;
 
     /// Subscribe registers a callback function to be called when messages arrive on the specified pipe.
     async fn subscribe(&self, pipe: &str, callback: Process) -> Result<()>;
 
     /// SubscribeWithContext registers a callback with context for cancellation.
     async fn subscribe_with_context(
-        &self, 
-        ctx: &context::Context, 
-        pipe: &str, 
-        callback: Process
+        &self,
+        ctx: &context::Context,
+        pipe: &str,
+        callback: Process,
     ) -> Result<()>;
 
     /// Remove unsubscribes from the specified pipe.

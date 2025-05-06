@@ -13,8 +13,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::RwLock;
 
 use crate::core::registry::register_router_factory;
-use crate::core::{context, BoxedHybridPipe, BrokerType, Error, HybridPipe, Process, Result};
-use crate::serialization::{decode, encode};
+use crate::core::{context, BrokerType, Error, HybridPipe, Process, Result};
 
 /// Packet implements the HybridPipe interface for in-memory messaging.
 pub struct Packet {
@@ -51,9 +50,13 @@ impl HybridPipe for Packet {
     }
 
     async fn disconnect(&self) -> Result<()> {
-        let mut connected = self.connected.lock().unwrap();
-        if !*connected {
-            return Err(Error::NotConnected);
+        // Check if connected and set flag to false
+        {
+            let mut connected = self.connected.lock().unwrap();
+            if !*connected {
+                return Err(Error::NotConnected);
+            }
+            *connected = false;
         }
 
         // Clear subscribers and messages
@@ -63,27 +66,35 @@ impl HybridPipe for Packet {
         let mut messages = self.messages.write().await;
         messages.clear();
 
-        *connected = false;
         info!("Disconnected from mock messaging system");
         Ok(())
     }
 
     async fn dispatch(&self, pipe: &str, data: Box<dyn Any + Send + Sync>) -> Result<()> {
-        let connected = self.connected.lock().unwrap();
-        if !*connected {
-            return Err(Error::NotConnected);
+        // Check if connected
+        {
+            let connected = self.connected.lock().unwrap();
+            if !*connected {
+                return Err(Error::NotConnected);
+            }
         }
 
-        // Encode the data
-        let bytes = encode(&data)
+        // Convert the data to a JSON string
+        let json_string = serde_json::to_string(&format!("{:?}", data))
             .map_err(|e| Error::SerializationError(format!("Failed to encode message: {}", e)))?;
+
+        // Convert the JSON string to bytes
+        let bytes = json_string.into_bytes();
+
+        // Clone the bytes for storage
+        let bytes_clone = bytes.clone();
 
         // Store the message
         let mut messages = self.messages.write().await;
         messages
             .entry(pipe.to_string())
             .or_insert_with(Vec::new)
-            .push(bytes.clone());
+            .push(bytes_clone);
         drop(messages);
 
         // Deliver the message to subscribers
@@ -107,27 +118,13 @@ impl HybridPipe for Packet {
         ctx.run(self.dispatch(pipe, data)).await
     }
 
-    async fn accept<F>(&self, pipe: &str, callback: F) -> Result<()>
-    where
-        F: Fn(Box<dyn Any + Send + Sync>) + Send + Sync + 'static,
-    {
-        // Create a Process wrapper for the callback
-        let process: Process = Box::new(move |data| {
-            let decoded: Box<dyn Any + Send + Sync> = match decode(&data) {
-                Ok(decoded) => Box::new(decoded),
-                Err(e) => return Err(e),
-            };
-            callback(decoded);
-            Ok(())
-        });
-
-        self.subscribe(pipe, process).await
-    }
-
     async fn subscribe(&self, pipe: &str, callback: Process) -> Result<()> {
-        let connected = self.connected.lock().unwrap();
-        if !*connected {
-            return Err(Error::NotConnected);
+        // Check if connected
+        {
+            let connected = self.connected.lock().unwrap();
+            if !*connected {
+                return Err(Error::NotConnected);
+            }
         }
 
         // Check if already subscribed
@@ -171,9 +168,12 @@ impl HybridPipe for Packet {
     }
 
     async fn unsubscribe(&self, pipe: &str) -> Result<()> {
-        let connected = self.connected.lock().unwrap();
-        if !*connected {
-            return Err(Error::NotConnected);
+        // Check if connected
+        {
+            let connected = self.connected.lock().unwrap();
+            if !*connected {
+                return Err(Error::NotConnected);
+            }
         }
 
         // Check if subscribed

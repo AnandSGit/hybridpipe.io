@@ -3,15 +3,17 @@
 // This module provides functionality for encoding and decoding data in various formats
 // for transmission through the HybridPipe messaging system.
 
-use std::any::Any;
-use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::sync::{Arc, RwLock};
+pub mod protobuf;
+
+#[cfg(test)]
+mod tests;
+
+use bytes::{Bytes, BytesMut};
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use serde::{Serialize, Deserialize};
-use bytes::{Bytes, BytesMut};
+use serde::{Deserialize, Serialize};
+use std::io::{Read, Write};
 
 use crate::core::{Error, Result};
 
@@ -80,52 +82,58 @@ const VERSION: u8 = 1;
 const COMPRESSION_FLAG: u8 = 0x01;
 
 /// Encode data using the default serialization options.
-pub fn encode<T: Serialize + ?Sized>(data: &T) -> Result<Bytes> {
+pub fn encode<T: Serialize + 'static>(data: &T) -> Result<Bytes> {
     encode_with_options(data, &SerializationOptions::default())
 }
 
 /// Encode data using the specified serialization options.
-pub fn encode_with_options<T: Serialize + ?Sized>(data: &T, options: &SerializationOptions) -> Result<Bytes> {
+pub fn encode_with_options<T: Serialize + 'static>(
+    data: &T,
+    options: &SerializationOptions,
+) -> Result<Bytes> {
     // Serialize the data based on the format
     let mut payload = match options.format {
-        SerializationFormat::Bincode => {
-            bincode::serialize(data)
-                .map_err(|e| Error::SerializationError(format!("bincode error: {}", e)))?
-        }
-        SerializationFormat::Json => {
-            serde_json::to_vec(data)
-                .map_err(|e| Error::SerializationError(format!("json error: {}", e)))?
-        }
-        SerializationFormat::MessagePack => {
-            rmp_serde::to_vec(data)
-                .map_err(|e| Error::SerializationError(format!("messagepack error: {}", e)))?
-        }
+        SerializationFormat::Bincode => bincode::serialize(data)
+            .map_err(|e| Error::SerializationError(format!("bincode error: {}", e)))?,
+        SerializationFormat::Json => serde_json::to_vec(data)
+            .map_err(|e| Error::SerializationError(format!("json error: {}", e)))?,
+        SerializationFormat::MessagePack => rmp_serde::to_vec(data)
+            .map_err(|e| Error::SerializationError(format!("messagepack error: {}", e)))?,
         SerializationFormat::Protobuf => {
-            return Err(Error::SerializationError(
-                "protobuf serialization not implemented yet".to_string(),
-            ));
+            if let Some(type_name) = &options.protobuf_message_type {
+                // Convert the result to Vec<u8> to match other branches
+                let bytes = protobuf::encode_protobuf_dynamic(data, type_name)
+                    .map_err(|e| Error::SerializationError(format!("protobuf error: {}", e)))?;
+                bytes.to_vec()
+            } else {
+                return Err(Error::SerializationError(
+                    "protobuf serialization requires a message type".to_string(),
+                ));
+            }
         }
     };
 
     // Compress the payload if requested
     if options.compression {
         let mut encoder = GzEncoder::new(Vec::new(), Compression::new(options.compression_level));
-        encoder.write_all(&payload)
+        encoder
+            .write_all(&payload)
             .map_err(|e| Error::SerializationError(format!("compression error: {}", e)))?;
-        payload = encoder.finish()
+        payload = encoder
+            .finish()
             .map_err(|e| Error::SerializationError(format!("compression finish error: {}", e)))?;
     }
 
     // Create the header
     let mut header = [0u8; HEADER_SIZE];
-    
+
     // Magic number
     header[0] = MAGIC[0];
     header[1] = MAGIC[1];
-    
+
     // Version
     header[2] = VERSION;
-    
+
     // Format
     header[3] = match options.format {
         SerializationFormat::Bincode => 0,
@@ -133,39 +141,42 @@ pub fn encode_with_options<T: Serialize + ?Sized>(data: &T, options: &Serializat
         SerializationFormat::Protobuf => 2,
         SerializationFormat::MessagePack => 3,
     };
-    
+
     // Flags
     let mut flags = 0u8;
     if options.compression {
         flags |= COMPRESSION_FLAG;
     }
     header[4] = flags;
-    
+
     // Reserved
     // header[5..8] remains zeros
-    
+
     // Payload length
     let payload_len = payload.len() as u32;
     header[8] = (payload_len >> 24) as u8;
     header[9] = (payload_len >> 16) as u8;
     header[10] = (payload_len >> 8) as u8;
     header[11] = payload_len as u8;
-    
+
     // Combine header and payload
     let mut result = BytesMut::with_capacity(HEADER_SIZE + payload.len());
     result.extend_from_slice(&header);
     result.extend_from_slice(&payload);
-    
+
     Ok(result.freeze())
 }
 
 /// Decode data using automatic format detection.
-pub fn decode<T: for<'de> Deserialize<'de>>(data: &[u8]) -> Result<T> {
+pub fn decode<T: for<'de> Deserialize<'de> + 'static>(data: &[u8]) -> Result<T> {
     decode_with_options(data, &SerializationOptions::default())
 }
 
 /// Decode data using the specified serialization options.
-pub fn decode_with_options<T: for<'de> Deserialize<'de>>(data: &[u8], options: &SerializationOptions) -> Result<T> {
+pub fn decode_with_options<T: for<'de> Deserialize<'de> + 'static>(
+    data: &[u8],
+    options: &SerializationOptions,
+) -> Result<T> {
     if data.len() < HEADER_SIZE {
         return Err(Error::DeserializationError(
             "data too short for header".to_string(),
@@ -174,21 +185,22 @@ pub fn decode_with_options<T: for<'de> Deserialize<'de>>(data: &[u8], options: &
 
     // Parse the header
     let header = &data[0..HEADER_SIZE];
-    
+
     // Check magic number
     if header[0] != MAGIC[0] || header[1] != MAGIC[1] {
         return Err(Error::DeserializationError(
             "invalid magic number".to_string(),
         ));
     }
-    
+
     // Check version
     if header[2] != VERSION {
-        return Err(Error::DeserializationError(
-            format!("unsupported version: {}", header[2]),
-        ));
+        return Err(Error::DeserializationError(format!(
+            "unsupported version: {}",
+            header[2]
+        )));
     }
-    
+
     // Get format
     let format = match header[3] {
         0 => SerializationFormat::Bincode,
@@ -196,59 +208,69 @@ pub fn decode_with_options<T: for<'de> Deserialize<'de>>(data: &[u8], options: &
         2 => SerializationFormat::Protobuf,
         3 => SerializationFormat::MessagePack,
         _ => {
-            return Err(Error::DeserializationError(
-                format!("unsupported format: {}", header[3]),
-            ));
+            return Err(Error::DeserializationError(format!(
+                "unsupported format: {}",
+                header[3]
+            )));
         }
     };
-    
+
     // Get flags
     let flags = header[4];
     let compressed = (flags & COMPRESSION_FLAG) != 0;
-    
+
     // Get payload length
     let payload_len = ((header[8] as u32) << 24)
         | ((header[9] as u32) << 16)
         | ((header[10] as u32) << 8)
         | (header[11] as u32);
-    
+
     // Extract payload
     let payload = &data[HEADER_SIZE..];
     if payload.len() != payload_len as usize {
-        return Err(Error::DeserializationError(
-            format!("payload length mismatch: expected {}, got {}", payload_len, payload.len()),
-        ));
+        return Err(Error::DeserializationError(format!(
+            "payload length mismatch: expected {}, got {}",
+            payload_len,
+            payload.len()
+        )));
     }
-    
+
     // Decompress if necessary
     let payload = if compressed {
         let mut decoder = GzDecoder::new(payload);
         let mut decompressed = Vec::new();
-        decoder.read_to_end(&mut decompressed)
+        decoder
+            .read_to_end(&mut decompressed)
             .map_err(|e| Error::DeserializationError(format!("decompression error: {}", e)))?;
         decompressed
     } else {
         payload.to_vec()
     };
-    
+
     // Deserialize based on format
     match format {
-        SerializationFormat::Bincode => {
-            bincode::deserialize(&payload)
-                .map_err(|e| Error::DeserializationError(format!("bincode error: {}", e)))
-        }
-        SerializationFormat::Json => {
-            serde_json::from_slice(&payload)
-                .map_err(|e| Error::DeserializationError(format!("json error: {}", e)))
-        }
-        SerializationFormat::MessagePack => {
-            rmp_serde::from_slice(&payload)
-                .map_err(|e| Error::DeserializationError(format!("messagepack error: {}", e)))
-        }
+        SerializationFormat::Bincode => bincode::deserialize(&payload)
+            .map_err(|e| Error::DeserializationError(format!("bincode error: {}", e))),
+        SerializationFormat::Json => serde_json::from_slice(&payload)
+            .map_err(|e| Error::DeserializationError(format!("json error: {}", e))),
+        SerializationFormat::MessagePack => rmp_serde::from_slice(&payload)
+            .map_err(|e| Error::DeserializationError(format!("messagepack error: {}", e))),
         SerializationFormat::Protobuf => {
-            Err(Error::DeserializationError(
-                "protobuf deserialization not implemented yet".to_string(),
-            ))
+            if let Some(type_name) = &options.protobuf_message_type {
+                let decoded = protobuf::decode_protobuf_dynamic(&payload, type_name)?;
+                // We need to convert the Box<dyn Any> to T
+                match decoded.downcast::<T>() {
+                    Ok(t) => Ok(*t),
+                    Err(_) => Err(Error::DeserializationError(format!(
+                        "failed to downcast protobuf message to target type: {}",
+                        std::any::type_name::<T>()
+                    ))),
+                }
+            } else {
+                Err(Error::DeserializationError(
+                    "protobuf deserialization requires a message type".to_string(),
+                ))
+            }
         }
     }
 }

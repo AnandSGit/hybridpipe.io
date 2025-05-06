@@ -2,12 +2,11 @@
 //
 // This module defines the registry system for HybridPipe protocol implementations.
 
-use std::sync::{Arc, RwLock};
+use std::any::TypeId;
 use std::collections::HashMap;
-use std::any::{Any, TypeId};
-use std::fmt;
+use std::sync::RwLock;
 
-use super::{BrokerType, HybridPipe, RouterFactory, BoxedHybridPipe, Error, Result};
+use super::{BoxedHybridPipe, BrokerType, Error, HybridPipe, Result, RouterFactory};
 
 // Global registry for router factories
 lazy_static::lazy_static! {

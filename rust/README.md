@@ -53,6 +53,10 @@ HybridPipe uses a few key concepts:
 - **Pipe**: A named channel for sending/receiving messages (similar to topics or subjects)
 - **Process Function**: A callback function that processes received messages
 - **Connection Handle**: An object representing a connection to a messaging system
+- **Middleware**: Components that can intercept and modify messages or add functionality
+- **Serialization Format**: The format used to encode/decode messages (JSON, Protocol Buffers, MessagePack, etc.)
+- **Tracing**: System for tracking message flows across services
+- **Monitoring**: System for collecting metrics about message processing
 
 ### Example: Publish Messages
 
@@ -72,7 +76,7 @@ struct Person {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Connect to Kafka
     let kafka_conn = deploy_router(BrokerType::KAFKA)?;
-    
+
     // Create a message
     let person = Person {
         name: "David Gower".to_string(),
@@ -80,10 +84,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         next_gen: vec!["Pringle".to_string(), "NH Fairbrother".to_string(), "Wasim".to_string()],
         c_age: vec![45, 37, 39],
     };
-    
+
     // Send the message to a pipe
     kafka_conn.dispatch("app.users.events", Box::new(person)).await?;
-    
+
     Ok(())
 }
 ```
@@ -108,7 +112,7 @@ struct Person {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Connect to NATS
     let nats_conn = deploy_router(BrokerType::NATS)?;
-    
+
     // Define a message handler
     nats_conn.accept("app.users.events", |data| {
         if let Some(person) = data.downcast_ref::<Person>() {
@@ -117,10 +121,115 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Received data of unknown type");
         }
     }).await?;
-    
+
     // Keep the application running until Ctrl+C
     signal::ctrl_c().await?;
-    
+
+    Ok(())
+}
+```
+
+### Example: Using Middleware
+
+```rust
+use hybridpipe::{
+    deploy_router, BrokerType, MiddlewareStack, LoggingMiddleware,
+    MonitoringMiddleware, new_message_stats,
+};
+use serde::{Serialize, Deserialize};
+use std::sync::Arc;
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Person {
+    name: String,
+    age: u32,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create monitoring components
+    let stats = new_message_stats();
+
+    // Create middleware
+    let monitoring_middleware = MonitoringMiddleware::new(stats.clone());
+    let logging_middleware = LoggingMiddleware::new();
+
+    // Deploy a router
+    let router = deploy_router(BrokerType::KAFKA)?;
+
+    // Create a middleware stack
+    let mut middleware_stack = MiddlewareStack::new(router);
+    middleware_stack.add_middleware(monitoring_middleware);
+    middleware_stack.add_middleware(logging_middleware);
+
+    // Connect to the messaging system
+    middleware_stack.connect().await?;
+
+    // Use the middleware stack like a normal HybridPipe
+    middleware_stack.dispatch("app.users.events", Box::new(Person {
+        name: "John Doe".to_string(),
+        age: 30,
+    })).await?;
+
+    // Get monitoring stats
+    let dispatch_metrics = stats.get_dispatch_metrics();
+    for (pipe, metrics) in dispatch_metrics {
+        println!("Pipe: {}, Messages: {}", pipe, metrics.total_count);
+    }
+
+    Ok(())
+}
+```
+
+### Example: Using Tracing
+
+```rust
+use hybridpipe::{
+    deploy_router, BrokerType, MiddlewareStack, TracingMiddleware, Tracer,
+};
+use serde::{Serialize, Deserialize};
+use std::sync::Arc;
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Person {
+    name: String,
+    age: u32,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a tracer
+    let tracer = Arc::new(Tracer::new("my-service"));
+
+    // Create tracing middleware
+    let tracing_middleware = TracingMiddleware::new(tracer.clone());
+
+    // Deploy a router
+    let router = deploy_router(BrokerType::KAFKA)?;
+
+    // Create a middleware stack
+    let mut middleware_stack = MiddlewareStack::new(router);
+    middleware_stack.add_middleware(tracing_middleware);
+
+    // Connect to the messaging system
+    middleware_stack.connect().await?;
+
+    // Start a trace
+    let trace_id = tracer.start_trace("process-user");
+
+    // Use the middleware stack
+    middleware_stack.dispatch("app.users.events", Box::new(Person {
+        name: "John Doe".to_string(),
+        age: 30,
+    })).await?;
+
+    // End the trace
+    tracer.end_trace(&trace_id);
+
+    // Get trace information
+    let trace = tracer.get_trace(&trace_id).unwrap();
+    println!("Trace: {}, Spans: {}", trace.name, trace.spans.len());
+
     Ok(())
 }
 ```

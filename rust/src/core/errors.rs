@@ -3,7 +3,6 @@
 // This module defines the error types used by HybridPipe.
 
 use thiserror::Error;
-use std::fmt;
 
 /// Result type for HybridPipe operations
 pub type Result<T> = std::result::Result<T, Error>;

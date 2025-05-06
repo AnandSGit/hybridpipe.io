@@ -35,7 +35,7 @@ fn main() {
 fn example_kafka() {
     info!("Running Kafka example...");
     match deploy_router(BrokerType::KAFKA) {
-        Ok(router) => {
+        Ok(_router) => {
             // Example implementation
             info!("Connected to Kafka");
             // Additional implementation would go here

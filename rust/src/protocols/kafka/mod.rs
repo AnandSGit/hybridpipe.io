@@ -2,25 +2,25 @@
 //
 // This module provides an implementation of the HybridPipe interface for Apache Kafka.
 
+use async_trait::async_trait;
+use log::{debug, error, info};
+use rdkafka::config::ClientConfig;
+use rdkafka::consumer::{Consumer, StreamConsumer};
+use rdkafka::message::OwnedHeaders;
+use rdkafka::producer::{FutureProducer, FutureRecord};
+use rdkafka::util::Timeout;
+use rdkafka::Message;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use async_trait::async_trait;
-use rdkafka::config::ClientConfig;
-use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::producer::{FutureProducer, FutureRecord};
-use rdkafka::message::OwnedHeaders;
-use rdkafka::util::Timeout;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
-use log::{debug, error, info, warn};
 
-use crate::core::{BrokerType, HybridPipe, Process, Error, Result, BoxedHybridPipe, context};
 use crate::core::config::{get_config, KafkaConfig};
 use crate::core::registry::register_router_factory;
-use crate::serialization::{encode, decode};
+use crate::core::{context, BrokerType, Error, HybridPipe, Process, Result};
 
 /// Packet implements the HybridPipe interface for Kafka messaging system.
 pub struct Packet {
@@ -72,15 +72,18 @@ impl Packet {
         let mut config = ClientConfig::new();
         config.set("bootstrap.servers", &self.server);
         config.set("message.timeout.ms", &self.config.k_timeout.to_string());
-        
+
         // Add TLS configuration if certificate files are provided
-        if !self.config.kafka_cert_file.is_empty() && !self.config.kafka_key_file.is_empty() && !self.config.kafka_ca_file.is_empty() {
+        if !self.config.kafka_cert_file.is_empty()
+            && !self.config.kafka_key_file.is_empty()
+            && !self.config.kafka_ca_file.is_empty()
+        {
             config.set("security.protocol", "ssl");
             config.set("ssl.certificate.location", &self.config.kafka_cert_file);
             config.set("ssl.key.location", &self.config.kafka_key_file);
             config.set("ssl.ca.location", &self.config.kafka_ca_file);
         }
-        
+
         config
     }
 
@@ -91,16 +94,22 @@ impl Packet {
         config.set("group.id", group_id);
         config.set("enable.auto.commit", "true");
         config.set("auto.offset.reset", "earliest");
-        config.set("session.timeout.ms", &(self.config.k_timeout * 1000).to_string());
-        
+        config.set(
+            "session.timeout.ms",
+            &(self.config.k_timeout * 1000).to_string(),
+        );
+
         // Add TLS configuration if certificate files are provided
-        if !self.config.kafka_cert_file.is_empty() && !self.config.kafka_key_file.is_empty() && !self.config.kafka_ca_file.is_empty() {
+        if !self.config.kafka_cert_file.is_empty()
+            && !self.config.kafka_key_file.is_empty()
+            && !self.config.kafka_ca_file.is_empty()
+        {
             config.set("security.protocol", "ssl");
             config.set("ssl.certificate.location", &self.config.kafka_cert_file);
             config.set("ssl.key.location", &self.config.kafka_key_file);
             config.set("ssl.ca.location", &self.config.kafka_ca_file);
         }
-        
+
         config
     }
 }
@@ -115,24 +124,29 @@ impl HybridPipe for Packet {
 
         // Create the Kafka producer
         let producer_config = self.create_producer_config();
-        let producer: FutureProducer = producer_config.create()
-            .map_err(|e| Error::ConnectionError(format!("Failed to create Kafka producer: {}", e)))?;
-        
+        let producer: FutureProducer = producer_config.create().map_err(|e| {
+            Error::ConnectionError(format!("Failed to create Kafka producer: {}", e))
+        })?;
+
         // Store the producer
         let mut writer = self.writer.lock().unwrap();
         *writer = Some(producer);
-        
+
         // Set connected flag
         *connected = true;
-        
+
         info!("Connected to Kafka server at {}", self.server);
         Ok(())
     }
 
     async fn disconnect(&self) -> Result<()> {
-        let mut connected = self.connected.lock().unwrap();
-        if !*connected {
-            return Err(Error::NotConnected);
+        // Check if connected and set flag to false
+        {
+            let mut connected = self.connected.lock().unwrap();
+            if !*connected {
+                return Err(Error::NotConnected);
+            }
+            *connected = false;
         }
 
         // Cancel all reader tasks
@@ -147,39 +161,39 @@ impl HybridPipe for Packet {
         readers.clear();
 
         // Clear the writer
-        let mut writer = self.writer.lock().unwrap();
-        *writer = None;
-
-        // Set connected flag
-        *connected = false;
+        {
+            let mut writer = self.writer.lock().unwrap();
+            *writer = None;
+        }
 
         info!("Disconnected from Kafka server at {}", self.server);
         Ok(())
     }
 
     async fn dispatch(&self, pipe: &str, data: Box<dyn Any + Send + Sync>) -> Result<()> {
-        let connected = self.connected.lock().unwrap();
-        if !*connected {
-            return Err(Error::NotConnected);
+        // Check if connected
+        {
+            let connected = self.connected.lock().unwrap();
+            if !*connected {
+                return Err(Error::NotConnected);
+            }
         }
 
-        // Get the writer
-        let writer = self.writer.lock().unwrap();
-        let producer = writer.as_ref().ok_or(Error::NotConnected)?;
-
-        // Downcast the data to a serializable type
-        let serializable_data = match data.downcast_ref::<Box<dyn Any + Send + Sync>>() {
-            Some(data) => data,
-            None => {
-                return Err(Error::SerializationError(
-                    "Failed to downcast data to serializable type".to_string(),
-                ));
+        // Get the producer
+        let producer = {
+            let writer = self.writer.lock().unwrap();
+            match writer.as_ref() {
+                Some(producer) => producer.clone(),
+                None => return Err(Error::NotConnected),
             }
         };
 
-        // Encode the data
-        let bytes = encode(serializable_data)
+        // Convert the data to a JSON string
+        let json_string = serde_json::to_string(&format!("{:?}", data))
             .map_err(|e| Error::SerializationError(format!("Failed to encode message: {}", e)))?;
+
+        // Convert the JSON string to bytes
+        let bytes = json_string.into_bytes();
 
         // Create a Kafka record
         let record = FutureRecord::to(pipe)
@@ -191,7 +205,10 @@ impl HybridPipe for Packet {
         let timeout = Timeout::After(Duration::from_secs(self.config.k_timeout as u64));
         match producer.send(record, timeout).await {
             Ok(_) => Ok(()),
-            Err((e, _)) => Err(Error::DispatchError(format!("Failed to send message: {}", e))),
+            Err((e, _)) => Err(Error::DispatchError(format!(
+                "Failed to send message: {}",
+                e
+            ))),
         }
     }
 
@@ -205,27 +222,13 @@ impl HybridPipe for Packet {
         ctx.run(self.dispatch(pipe, data)).await
     }
 
-    async fn accept<F>(&self, pipe: &str, callback: F) -> Result<()>
-    where
-        F: Fn(Box<dyn Any + Send + Sync>) + Send + Sync + 'static,
-    {
-        // Create a Process wrapper for the callback
-        let process: Process = Box::new(move |data| {
-            let decoded: Box<dyn Any + Send + Sync> = match decode(&data) {
-                Ok(decoded) => Box::new(decoded),
-                Err(e) => return Err(e),
-            };
-            callback(decoded);
-            Ok(())
-        });
-
-        self.subscribe(pipe, process).await
-    }
-
     async fn subscribe(&self, pipe: &str, callback: Process) -> Result<()> {
-        let connected = self.connected.lock().unwrap();
-        if !*connected {
-            return Err(Error::NotConnected);
+        // Check if connected
+        {
+            let connected = self.connected.lock().unwrap();
+            if !*connected {
+                return Err(Error::NotConnected);
+            }
         }
 
         // Check if already subscribed
@@ -240,12 +243,14 @@ impl HybridPipe for Packet {
 
         // Create the consumer
         let consumer_config = self.create_consumer_config(&group_id);
-        let consumer: StreamConsumer = consumer_config.create()
-            .map_err(|e| Error::SubscriptionError(format!("Failed to create Kafka consumer: {}", e)))?;
+        let consumer: StreamConsumer = consumer_config.create().map_err(|e| {
+            Error::SubscriptionError(format!("Failed to create Kafka consumer: {}", e))
+        })?;
 
         // Subscribe to the topic
-        consumer.subscribe(&[pipe])
-            .map_err(|e| Error::SubscriptionError(format!("Failed to subscribe to topic: {}", e)))?;
+        consumer.subscribe(&[pipe]).map_err(|e| {
+            Error::SubscriptionError(format!("Failed to subscribe to topic: {}", e))
+        })?;
 
         // Store the consumer
         let consumer = Arc::new(consumer);
@@ -258,7 +263,7 @@ impl HybridPipe for Packet {
         let callback_owned = callback;
         let task = tokio::spawn(async move {
             info!("Started Kafka consumer for pipe: {}", pipe_owned);
-            
+
             loop {
                 match consumer.recv().await {
                     Ok(message) => {
@@ -298,9 +303,12 @@ impl HybridPipe for Packet {
     }
 
     async fn unsubscribe(&self, pipe: &str) -> Result<()> {
-        let connected = self.connected.lock().unwrap();
-        if !*connected {
-            return Err(Error::NotConnected);
+        // Check if connected
+        {
+            let connected = self.connected.lock().unwrap();
+            if !*connected {
+                return Err(Error::NotConnected);
+            }
         }
 
         // Check if subscribed
@@ -336,7 +344,5 @@ impl HybridPipe for Packet {
 
 /// Register the Kafka protocol with the HybridPipe system.
 pub fn register() {
-    register_router_factory(BrokerType::KAFKA, Box::new(|| {
-        Arc::new(Packet::new())
-    }));
+    register_router_factory(BrokerType::KAFKA, Box::new(|| Arc::new(Packet::new())));
 }
