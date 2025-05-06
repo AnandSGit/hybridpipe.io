@@ -1,0 +1,101 @@
+# Default HybridPipe Configuration File
+
+[nats]
+n_servers = "localhost"
+n_lport = 4222
+n_mport = 8222
+n_cport = 6222
+nats_cert_file = ""
+nats_key_file = ""
+nats_ca_file = ""
+n_allow_reconnect = true
+n_max_attempt = 10
+n_reconnect_wait = 5
+n_timeout = 2
+
+[kafka]
+k_servers = "localhost"
+k_lport = 9093
+k_timeout = 10
+kafka_cert_file = ""
+kafka_key_file = ""
+kafka_ca_file = ""
+
+[rabbitmq]
+r_server_port = "amqp://guest:guest@localhost:5672/"
+
+[amqp1]
+amqp_server = "amqp://0.0.0.0:5672/"
+amqp_port = 5672
+
+[qpid]
+qpid_server = "localhost"
+qpid_port = 5672
+qpid_username = "guest"
+qpid_password = "guest"
+qpid_cert_file = ""
+qpid_key_file = ""
+qpid_ca_file = ""
+qpid_timeout = 10
+
+[mqtt]
+mqtt_broker = "tcp://localhost:1883"
+mqtt_client_id = "hybridpipe-client"
+mqtt_username = "user"
+mqtt_password = "password"
+mqtt_clean_session = true
+mqtt_qos = 1
+mqtt_retained = false
+mqtt_cert_file = ""
+mqtt_key_file = ""
+mqtt_ca_file = ""
+mqtt_connect_timeout = 10
+
+[nsq]
+nsq_lookupd_addresses = "localhost:4161"
+nsq_d_address = "localhost"
+nsq_d_port = 4150
+nsq_client_id = "hybridpipe-client"
+nsq_auth_secret = ""
+nsq_max_in_flight = 100
+nsq_max_attempts = 5
+nsq_requeue_delay = 10
+nsq_connect_timeout = 10
+
+[tcp]
+tcp_host = "localhost"
+tcp_port = 9000
+tcp_mode = "client"
+tcp_buffer_size = 4096
+tcp_keep_alive = true
+tcp_keep_alive_period = 30
+tcp_connect_timeout = 10
+tcp_tls_enabled = false
+tcp_cert_file = ""
+tcp_key_file = ""
+tcp_ca_file = ""
+
+[redis]
+redis_address = "localhost"
+redis_port = 6379
+redis_password = ""
+redis_db = 0
+redis_username = ""
+redis_pool_size = 10
+redis_min_idle_conns = 2
+redis_connect_timeout = 10
+redis_read_timeout = 5
+redis_write_timeout = 5
+redis_tls_enabled = false
+redis_cert_file = ""
+redis_key_file = ""
+redis_ca_file = ""
+
+[netchan]
+netchan_server = "localhost"
+netchan_port = 8080
+netchan_buffer_size = 10
+netchan_timeout = 5000
+
+[general]
+db_location = "/etc/hybridpipe"
