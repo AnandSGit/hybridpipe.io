@@ -37,7 +37,7 @@ func setupTCPConfig() *core.TCPConfig {
 }
 
 // createTCPRouter creates a new TCP router with the test configuration.
-func createTCPRouter(t *testing.T) *Packet {
+func createTCPRouter() *Packet {
 	// Create a new TCP Packet
 	router := &Packet{
 		config:   setupTCPConfig(),
@@ -57,7 +57,7 @@ func TestTCPRouterBasicOperations(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Run the basic operations test
 	testutils.TestProtocolBasicOperations(t, router)
@@ -71,7 +71,7 @@ func TestTCPRouterContextAwareOperations(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Run the context-aware operations test
 	testutils.TestProtocolContextAwareOperations(t, router)
@@ -85,7 +85,7 @@ func TestTCPRouterErrorHandling(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Run the error handling test
 	testutils.TestProtocolErrorHandling(t, router)
@@ -99,7 +99,7 @@ func TestTCPRouterConcurrentOperations(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Run the concurrent operations test
 	testutils.TestProtocolConcurrentOperations(t, router)
@@ -113,7 +113,7 @@ func TestTCPRouterConnect(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Test initial state
 	assert.False(t, router.IsConnected(), "Router should not be connected initially")
@@ -149,7 +149,7 @@ func TestTCPRouterDispatch(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Test Dispatch before Connect
 	err := router.Dispatch("test-pipe", "test-data")
@@ -197,7 +197,7 @@ func TestTCPRouterSubscribe(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Test Subscribe before Connect
 	err := router.Subscribe("test-pipe", func(data []byte) error { return nil })
@@ -237,7 +237,7 @@ func TestTCPRouterUnsubscribe(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Test Unsubscribe before Connect
 	err := router.Unsubscribe("test-pipe")
@@ -275,7 +275,7 @@ func TestTCPRouterAccept(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Test Accept before Connect
 	err := router.Accept("test-pipe", func(data any) {})
@@ -303,7 +303,7 @@ func TestTCPRouterEndToEnd(t *testing.T) {
 	}
 
 	// Create a new TCP router
-	router := createTCPRouter(t)
+	router := createTCPRouter()
 
 	// Connect
 	err := router.Connect()
