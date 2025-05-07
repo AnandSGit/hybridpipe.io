@@ -5,6 +5,9 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
+#[cfg(test)]
+mod tests;
+
 /// Generate a unique ID.
 pub fn generate_id() -> String {
     Uuid::new_v4().to_string()
@@ -33,7 +36,7 @@ pub fn format_duration(duration: Duration) -> String {
     let minutes = (total_seconds % 3600) / 60;
     let seconds = total_seconds % 60;
     let millis = duration.subsec_millis();
-    
+
     if hours > 0 {
         format!("{}h {}m {}s {}ms", hours, minutes, seconds, millis)
     } else if minutes > 0 {
@@ -59,7 +62,7 @@ pub fn format_bytes(bytes: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;
     const GB: u64 = MB * 1024;
-    
+
     if bytes >= GB {
         format!("{:.2} GB", bytes as f64 / GB as f64)
     } else if bytes >= MB {

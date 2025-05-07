@@ -100,3 +100,7 @@ pub type RouterFactory = Box<dyn Fn() -> Arc<dyn HybridPipe> + Send + Sync>;
 
 // Type alias for a boxed HybridPipe trait object
 pub type BoxedHybridPipe = Arc<dyn HybridPipe>;
+
+// Tests for the core module
+#[cfg(test)]
+mod tests;

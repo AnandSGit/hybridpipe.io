@@ -79,12 +79,15 @@ impl HybridPipe for Packet {
             }
         }
 
-        // Convert the data to a JSON string
-        let json_string = serde_json::to_string(&format!("{:?}", data))
-            .map_err(|e| Error::SerializationError(format!("Failed to encode message: {}", e)))?;
-
-        // Convert the JSON string to bytes
-        let bytes = json_string.into_bytes();
+        // Extract the bytes from the data
+        let bytes = if let Some(bytes) = data.downcast_ref::<Vec<u8>>() {
+            bytes.clone()
+        } else {
+            // If it's not already bytes, try to serialize it
+            serde_json::to_vec(&format!("{:?}", data)).map_err(|e| {
+                Error::SerializationError(format!("Failed to encode message: {}", e))
+            })?
+        };
 
         // Clone the bytes for storage
         let bytes_clone = bytes.clone();

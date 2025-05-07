@@ -360,3 +360,177 @@ pub fn get_protocol_config(broker_type: super::BrokerType) -> Result<&'static dy
         _ => Err(Error::BrokerTypeNotRegistered(broker_type.to_string())),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::broker_types::BrokerType;
+    use std::env;
+    use std::fs;
+    use std::path::Path;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_default_config() {
+        // Test that the default configuration can be loaded
+        let config = load_config("nonexistent_file.toml").expect("Failed to load default config");
+
+        // Check that the default values are set
+        assert_eq!(config.nats.n_servers, "localhost");
+        assert_eq!(config.nats.n_lport, 4222);
+        assert_eq!(config.nats.n_mport, 8222);
+        assert_eq!(config.nats.n_cport, 6222);
+        assert_eq!(config.nats.n_allow_reconnect, true);
+        assert_eq!(config.nats.n_max_attempt, 10);
+        assert_eq!(config.nats.n_reconnect_wait, 5);
+        assert_eq!(config.nats.n_timeout, 2);
+
+        assert_eq!(config.kafka.k_servers, "localhost");
+        assert_eq!(config.kafka.k_lport, 9093);
+        assert_eq!(config.kafka.k_timeout, 10);
+
+        assert_eq!(
+            config.rabbitmq.r_server_port,
+            "amqp://guest:guest@localhost:5672/"
+        );
+        assert_eq!(config.amqp1.amqp_server, "amqp://0.0.0.0:5672/");
+        assert_eq!(config.amqp1.amqp_port, 5672);
+        assert_eq!(config.mqtt.mqtt_broker, "tcp://localhost:1883");
+        assert_eq!(config.qpid.qpid_server, "localhost");
+        assert_eq!(config.nsq.nsq_server, "localhost");
+        assert_eq!(config.tcp.tcp_host, "localhost");
+        assert_eq!(config.redis.redis_address, "localhost");
+        assert_eq!(config.netchan.netchan_server, "localhost");
+        assert_eq!(config.general.db_location, "/etc/hybridpipe");
+    }
+
+    #[test]
+    fn test_load_config_from_file() {
+        // Create a temporary directory
+        let dir = tempdir().expect("Failed to create temporary directory");
+        let config_path = dir.path().join("test_config.toml");
+
+        // Create a test configuration file
+        let config_content = r#"
+            [nats]
+            n_servers = "test-server"
+            n_lport = 4223
+
+            [kafka]
+            k_servers = "test-kafka"
+            k_lport = 9094
+        "#;
+        fs::write(&config_path, config_content).expect("Failed to write test config file");
+
+        // Load the configuration from the file
+        let config =
+            load_config(config_path.to_str().unwrap()).expect("Failed to load config from file");
+
+        // Check that the values from the file are used
+        assert_eq!(config.nats.n_servers, "test-server");
+        assert_eq!(config.nats.n_lport, 4223);
+        assert_eq!(config.kafka.k_servers, "test-kafka");
+        assert_eq!(config.kafka.k_lport, 9094);
+
+        // Check that default values are used for fields not in the file
+        assert_eq!(config.nats.n_mport, 8222);
+        assert_eq!(config.nats.n_cport, 6222);
+        assert_eq!(config.nats.n_allow_reconnect, true);
+        assert_eq!(config.nats.n_max_attempt, 10);
+        assert_eq!(config.nats.n_reconnect_wait, 5);
+        assert_eq!(config.nats.n_timeout, 2);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_load_config_from_env() {
+        // This test modifies environment variables which can affect other tests
+        // So we'll ignore it for now
+
+        // Set environment variables
+        env::set_var("HYBRIDPIPE_NATS_N_SERVERS", "env-server");
+        env::set_var("HYBRIDPIPE_NATS_N_LPORT", "4224");
+        env::set_var("HYBRIDPIPE_KAFKA_K_SERVERS", "env-kafka");
+        env::set_var("HYBRIDPIPE_KAFKA_K_LPORT", "9095");
+
+        // Load the configuration
+        let config =
+            load_config("nonexistent_file.toml").expect("Failed to load config with env vars");
+
+        // Check that the values from environment variables are used
+        assert_eq!(config.nats.n_servers, "env-server");
+        assert_eq!(config.nats.n_lport, 4224);
+        assert_eq!(config.kafka.k_servers, "env-kafka");
+        assert_eq!(config.kafka.k_lport, 9095);
+
+        // Clean up
+        env::remove_var("HYBRIDPIPE_NATS_N_SERVERS");
+        env::remove_var("HYBRIDPIPE_NATS_N_LPORT");
+        env::remove_var("HYBRIDPIPE_KAFKA_K_SERVERS");
+        env::remove_var("HYBRIDPIPE_KAFKA_K_LPORT");
+    }
+
+    // Skip these tests for now as they require resetting the OnceLock
+    // which is not possible in a safe way
+    #[test]
+    #[ignore]
+    fn test_init_config() {
+        // Initialize the configuration
+        let result = init_config();
+        assert!(result.is_ok());
+
+        // Initialize again (should be a no-op)
+        let result = init_config();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_get_config() {
+        // Get the configuration (should initialize it if not already initialized)
+        let config = get_config().expect("Failed to get config");
+
+        // Check that the configuration is valid
+        assert!(config.nats.n_servers.len() > 0);
+
+        // Get the configuration again (should use the cached value)
+        let config2 = get_config().expect("Failed to get config");
+
+        // Check that the configuration is the same
+        assert_eq!(config2.nats.n_servers, config.nats.n_servers);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_get_protocol_config() {
+        // This test requires resetting the OnceLock which is not possible in a safe way
+
+        // Get the configuration for a specific protocol
+        let nats_config = get_protocol_config(BrokerType::NATS).expect("Failed to get NATS config");
+        let nats_config = nats_config
+            .downcast_ref::<NATSConfig>()
+            .expect("Failed to downcast to NATSConfig");
+
+        // Check that the configuration is valid
+        assert_eq!(nats_config.n_servers, "localhost");
+
+        // Get the configuration for another protocol
+        let kafka_config =
+            get_protocol_config(BrokerType::KAFKA).expect("Failed to get Kafka config");
+        let kafka_config = kafka_config
+            .downcast_ref::<KafkaConfig>()
+            .expect("Failed to downcast to KafkaConfig");
+
+        // Check that the configuration is valid
+        assert_eq!(kafka_config.k_servers, "localhost");
+
+        // Try to get the configuration for an unregistered protocol
+        let result = get_protocol_config(BrokerType::RESERVED1);
+        assert!(result.is_err());
+        match result {
+            Err(Error::BrokerTypeNotRegistered(broker_type)) => {
+                assert_eq!(broker_type, "RESERVED1");
+            }
+            _ => panic!("Expected BrokerTypeNotRegistered error"),
+        }
+    }
+}

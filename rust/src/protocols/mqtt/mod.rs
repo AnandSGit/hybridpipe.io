@@ -354,3 +354,6 @@ impl HybridPipe for Packet {
 pub fn register() {
     register_router_factory(BrokerType::MQTT, Box::new(|| Arc::new(Packet::new())));
 }
+
+#[cfg(test)]
+mod tests;

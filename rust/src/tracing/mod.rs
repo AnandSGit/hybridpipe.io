@@ -12,6 +12,9 @@ use uuid::Uuid;
 use crate::core::{HybridPipe, Result};
 use crate::middleware::Middleware;
 
+#[cfg(test)]
+mod tests;
+
 /// Span represents a single operation in a trace.
 #[derive(Debug, Clone)]
 pub struct Span {

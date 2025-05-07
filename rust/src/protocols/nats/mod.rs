@@ -2,7 +2,13 @@
 //
 // This module provides an implementation of the HybridPipe interface for NATS messaging system.
 
+#[cfg(not(test))]
 use async_nats::{Client, ConnectOptions, Subscriber};
+
+// We'll use the real client types for now
+#[cfg(test)]
+use async_nats::{Client, ConnectOptions, Subscriber};
+
 use async_trait::async_trait;
 use futures::StreamExt;
 use log::{debug, error, info};
@@ -101,19 +107,19 @@ impl HybridPipe for Packet {
             && !self.config.nats_ca_file.is_empty()
         {
             // Load certificates
-            let cert = tokio::fs::read(&self.config.nats_cert_file)
+            let _cert = tokio::fs::read(&self.config.nats_cert_file)
                 .await
                 .map_err(|e| {
                     Error::ConnectionError(format!("Failed to read NATS certificate file: {}", e))
                 })?;
 
-            let key = tokio::fs::read(&self.config.nats_key_file)
+            let _key = tokio::fs::read(&self.config.nats_key_file)
                 .await
                 .map_err(|e| {
                     Error::ConnectionError(format!("Failed to read NATS key file: {}", e))
                 })?;
 
-            let ca = tokio::fs::read(&self.config.nats_ca_file)
+            let _ca = tokio::fs::read(&self.config.nats_ca_file)
                 .await
                 .map_err(|e| {
                     Error::ConnectionError(format!("Failed to read NATS CA file: {}", e))
@@ -365,3 +371,6 @@ impl HybridPipe for Packet {
 pub fn register() {
     register_router_factory(BrokerType::NATS, Box::new(|| Arc::new(Packet::new())));
 }
+
+#[cfg(test)]
+mod tests;
