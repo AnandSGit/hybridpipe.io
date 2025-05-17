@@ -53,6 +53,7 @@ Both implementations provide the same core functionality and API concepts, allow
 | [NSQ](https://nsq.io/) | ✅ | ✅ | Realtime distributed messaging platform |
 | [Redis](https://redis.io/) | ✅ | ✅ | In-memory data structure store |
 | [TCP/IP](https://en.wikipedia.org/wiki/Internet_protocol_suite) | ✅ | ✅ | Direct TCP socket communication |
+| [ZeroMQ](https://zeromq.org/) | ✅ | ✅ | High-performance asynchronous messaging library |
 | [NetChan](https://github.com/AnandSGit/hybridpipe.io/netchan) | ✅ | ✅ | Go channels over network |
 
 ## Getting Started
@@ -94,6 +95,8 @@ For more details, see the [Rust Implementation README](./rust/README.md).
 - [Serialization Documentation](./docs/SERIALIZATION.md)
 - [Tracing Documentation](./docs/TRACING_DOCUMENTATION.md)
 - [Testing Documentation](./docs/testing.md)
+- [Message Monitoring Documentation](./docs/MONITORING.md)
+- [NetChan Documentation](./docs/NETCHAN.md)
 
 ## Contributing
 

@@ -13,8 +13,8 @@ pub enum BrokerType {
     KAFKA,
     /// RabbitMQ (AMQP 0.9.1)
     RABBITMQ,
-    /// Reserved for future use (previously ZeroMQ, now removed)
-    RESERVED1,
+    /// ZeroMQ messaging system
+    ZEROMQ,
     /// AMQP 1.0
     AMQP1,
     /// MQTT protocol
@@ -39,7 +39,7 @@ impl fmt::Display for BrokerType {
             BrokerType::NATS => write!(f, "NATS"),
             BrokerType::KAFKA => write!(f, "KAFKA"),
             BrokerType::RABBITMQ => write!(f, "RABBITMQ"),
-            BrokerType::RESERVED1 => write!(f, "RESERVED1"),
+            BrokerType::ZEROMQ => write!(f, "ZEROMQ"),
             BrokerType::AMQP1 => write!(f, "AMQP1"),
             BrokerType::MQTT => write!(f, "MQTT"),
             BrokerType::QPID => write!(f, "QPID"),
@@ -56,7 +56,7 @@ impl fmt::Display for BrokerType {
 pub const NATS: BrokerType = BrokerType::NATS;
 pub const KAFKA: BrokerType = BrokerType::KAFKA;
 pub const RABBITMQ: BrokerType = BrokerType::RABBITMQ;
-pub const RESERVED1: BrokerType = BrokerType::RESERVED1;
+pub const ZEROMQ: BrokerType = BrokerType::ZEROMQ;
 pub const AMQP1: BrokerType = BrokerType::AMQP1;
 pub const MQTT: BrokerType = BrokerType::MQTT;
 pub const QPID: BrokerType = BrokerType::QPID;

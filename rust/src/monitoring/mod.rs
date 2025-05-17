@@ -6,8 +6,13 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
+pub mod tracing;
+
 #[cfg(test)]
 mod tests;
+
+// Re-export tracing functionality
+pub use tracing::{InMemoryTracer, Span, Trace, TraceStatus, Tracer, TracingMiddleware};
 
 /// MessageStats collects metrics about message processing.
 pub struct MessageStats {

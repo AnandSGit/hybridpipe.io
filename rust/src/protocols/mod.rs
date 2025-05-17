@@ -15,6 +15,7 @@ pub mod qpid;
 pub mod rabbitmq;
 pub mod redis;
 pub mod tcp;
+pub mod zeromq;
 
 // Register all protocol implementations
 pub fn register_all() {
@@ -27,6 +28,7 @@ pub fn register_all() {
     nsq::register();
     tcp::register();
     redis::register();
+    zeromq::register();
     netchan::register();
     mock::register();
 }

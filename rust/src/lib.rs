@@ -31,14 +31,14 @@ pub use serialization::protobuf::{
 pub use middleware::{LoggingMiddleware, Middleware, MiddlewareStack, MonitoringMiddleware};
 
 // Re-export monitoring functionality
-pub use monitoring::{new_message_stats, MessageStats, PipeMetrics};
-
-// Re-export tracing functionality
-pub use tracing::{Span, Trace, Tracer, TracingMiddleware};
+pub use monitoring::{
+    new_message_stats, InMemoryTracer, MessageStats, PipeMetrics, Span, Trace, TraceStatus, Tracer,
+    TracingMiddleware,
+};
 
 // Constants for broker types
 pub use core::broker_types::{
-    AMQP1, KAFKA, MOCK, MQTT, NATS, NETCHAN, NSQ, QPID, RABBITMQ, REDIS, TCP,
+    AMQP1, KAFKA, MOCK, MQTT, NATS, NETCHAN, NSQ, QPID, RABBITMQ, REDIS, TCP, ZEROMQ,
 };
 
 // Register all protocol implementations
