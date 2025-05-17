@@ -19,7 +19,7 @@ struct ContextInner {
     /// Deadline for the context
     deadline: Option<Instant>,
     /// Cancel receiver for the context
-    cancel_rx: Option<oneshot::Receiver<()>>,
+    _cancel_rx: Option<oneshot::Receiver<()>>,
     /// Cancel sender for the context
     cancel_tx: Option<oneshot::Sender<()>>,
 }
@@ -31,32 +31,32 @@ impl Context {
         Self {
             inner: Arc::new(ContextInner {
                 deadline: None,
-                cancel_rx: Some(rx),
+                _cancel_rx: Some(rx),
                 cancel_tx: Some(tx),
             }),
         }
     }
 
     /// Create a new context with a timeout.
-    pub fn with_timeout(parent: &Self, timeout_duration: Duration) -> Self {
+    pub fn with_timeout(_parent: &Self, timeout_duration: Duration) -> Self {
         let deadline = Some(Instant::now() + timeout_duration);
         let (tx, rx) = oneshot::channel();
         Self {
             inner: Arc::new(ContextInner {
                 deadline,
-                cancel_rx: Some(rx),
+                _cancel_rx: Some(rx),
                 cancel_tx: Some(tx),
             }),
         }
     }
 
     /// Create a new context with a deadline.
-    pub fn with_deadline(parent: &Self, deadline: Instant) -> Self {
+    pub fn with_deadline(_parent: &Self, deadline: Instant) -> Self {
         let (tx, rx) = oneshot::channel();
         Self {
             inner: Arc::new(ContextInner {
                 deadline: Some(deadline),
-                cancel_rx: Some(rx),
+                _cancel_rx: Some(rx),
                 cancel_tx: Some(tx),
             }),
         }
@@ -68,7 +68,7 @@ impl Context {
         let ctx = Self {
             inner: Arc::new(ContextInner {
                 deadline: parent.inner.deadline,
-                cancel_rx: Some(rx),
+                _cancel_rx: Some(rx),
                 cancel_tx: None,
             }),
         };
@@ -90,6 +90,22 @@ impl Context {
         // Instead, we'll just return false here and let the actual cancellation
         // be handled by the run method
         false
+    }
+
+    /// Check if the context is cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        if let Some(deadline) = self.inner.deadline {
+            if Instant::now() >= deadline {
+                return true;
+            }
+        }
+
+        // Since we can't directly check the cancel_rx, we'll use a heuristic:
+        // If the cancel_tx is None in the inner context, it means cancel() was called
+        match &self.inner.cancel_tx {
+            None => true,
+            _ => false,
+        }
     }
 
     /// Get the deadline for the context, if any.

@@ -1,21 +1,19 @@
 // Kafka protocol implementation for HybridPipe
 //
 // This module provides an implementation of the HybridPipe interface for Apache Kafka.
+// Note: This is a temporary implementation that doesn't use the actual rdkafka crate
+// due to build issues on Windows. It will be replaced with a proper implementation
+// once the build issues are resolved.
 
 use async_trait::async_trait;
 use log::{debug, error, info};
-use rdkafka::config::ClientConfig;
-use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::message::OwnedHeaders;
-use rdkafka::producer::{FutureProducer, FutureRecord};
-use rdkafka::util::Timeout;
-use rdkafka::Message;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, RwLock};
 use tokio::task::JoinHandle;
+use tokio::time;
 use uuid::Uuid;
 
 use crate::core::config::{get_config, KafkaConfig};

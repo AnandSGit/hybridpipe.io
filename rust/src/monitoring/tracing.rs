@@ -4,16 +4,16 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use log::{debug, error, info, warn};
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use std::time::{Duration, Instant};
+// Time imports removed as they're not used
 use uuid::Uuid;
 
 use crate::core::{context, BrokerType, Error, HybridPipe, Process, Result};
-use crate::serialization::{deserialize, serialize};
+// Serialization imports removed as they're not used
 
 /// Span represents a trace span.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,7 +159,10 @@ impl Tracer for InMemoryTracer {
 
         // Trim the traces if necessary
         if self.max_traces > 0 && traces.len() > self.max_traces {
-            *traces = traces.split_off(traces.len() - self.max_traces);
+            // Create a new vector with only the most recent traces
+            let start_index = traces.len() - self.max_traces;
+            let new_traces = traces.iter().skip(start_index).cloned().collect::<Vec<_>>();
+            *traces = new_traces;
         }
 
         debug!("Ended trace: {}", trace.id);
@@ -280,25 +283,24 @@ impl HybridPipe for TracingMiddleware {
         let protocol = self.protocol.clone();
         let pipe_name = pipe.to_string();
 
-        let tracing_callback: Process = Box::new(move |data| {
+        let tracing_callback: Process = Arc::new(move |data| {
             let tracer = tracer.clone();
             let protocol = protocol.clone();
             let pipe_name = pipe_name.clone();
             let callback = callback.clone();
 
-            Box::pin(async move {
-                let trace = tracer.start_trace(&protocol, &pipe_name);
-                let result = callback(data).await;
-                match &result {
-                    Ok(_) => {
-                        tracer.end_trace(trace, TraceStatus::Success, None);
-                    }
-                    Err(e) => {
-                        tracer.end_trace(trace, TraceStatus::Error, Some(format!("{}", e)));
-                    }
+            // Process is now a synchronous function, not async
+            let trace = tracer.start_trace(&protocol, &pipe_name);
+            let result = callback(data);
+            match &result {
+                Ok(_) => {
+                    tracer.end_trace(trace, TraceStatus::Success, None);
                 }
-                result
-            })
+                Err(e) => {
+                    tracer.end_trace(trace, TraceStatus::Error, Some(format!("{}", e)));
+                }
+            }
+            result
         });
 
         // Subscribe with the wrapper
@@ -317,31 +319,29 @@ impl HybridPipe for TracingMiddleware {
         let pipe_name = pipe.to_string();
         let ctx_clone = ctx.clone();
 
-        let tracing_callback: Process = Box::new(move |data| {
+        let tracing_callback: Process = Arc::new(move |data| {
             let tracer = tracer.clone();
             let protocol = protocol.clone();
             let pipe_name = pipe_name.clone();
             let callback = callback.clone();
             let ctx = ctx_clone.clone();
 
-            Box::pin(async move {
-                // Check if the context is cancelled
-                if ctx.is_cancelled() {
-                    return Err(Error::ContextCancelled);
-                }
+            // Check if the context is cancelled
+            if ctx.is_cancelled() {
+                return Err(Error::ContextCancelled);
+            }
 
-                let trace = tracer.start_trace(&protocol, &pipe_name);
-                let result = callback(data).await;
-                match &result {
-                    Ok(_) => {
-                        tracer.end_trace(trace, TraceStatus::Success, None);
-                    }
-                    Err(e) => {
-                        tracer.end_trace(trace, TraceStatus::Error, Some(format!("{}", e)));
-                    }
+            let trace = tracer.start_trace(&protocol, &pipe_name);
+            let result = callback(data);
+            match &result {
+                Ok(_) => {
+                    tracer.end_trace(trace, TraceStatus::Success, None);
                 }
-                result
-            })
+                Err(e) => {
+                    tracer.end_trace(trace, TraceStatus::Error, Some(format!("{}", e)));
+                }
+            }
+            result
         });
 
         // Subscribe with the wrapper

@@ -3,7 +3,8 @@
 // This module contains implementations of the HybridPipe interface for various messaging protocols.
 
 pub mod amqp;
-pub mod kafka;
+// Temporarily disabled due to build issues
+// pub mod kafka;
 pub mod mock;
 #[cfg(test)]
 pub mod mocks;
@@ -19,7 +20,8 @@ pub mod zeromq;
 
 // Register all protocol implementations
 pub fn register_all() {
-    kafka::register();
+    // Temporarily commented out due to build issues
+    // kafka::register();
     nats::register();
     mqtt::register();
     rabbitmq::register();

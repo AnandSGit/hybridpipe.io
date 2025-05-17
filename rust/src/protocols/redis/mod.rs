@@ -29,7 +29,7 @@ pub struct Packet {
     /// Server is the Redis server address with port
     server: String,
     /// Config holds the Redis configuration
-    config: RedisConfig,
+    _config: RedisConfig,
     /// Connected flag indicates if the packet is connected
     connected: Mutex<bool>,
 }
@@ -53,7 +53,7 @@ impl Packet {
             connection: Mutex::new(None),
             subscriber_tasks: RwLock::new(HashMap::new()),
             server,
-            config,
+            _config: config,
             connected: Mutex::new(false),
         }
     }
@@ -162,7 +162,7 @@ impl HybridPipe for Packet {
         // Publish the message
         // We need to use a mutable connection
         let mut conn = connection;
-        conn.publish(pipe, bytes)
+        conn.publish::<_, _, ()>(pipe, bytes)
             .await
             .map_err(|e| Error::DispatchError(format!("Failed to publish message: {}", e)))?;
 

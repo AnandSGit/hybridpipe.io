@@ -120,7 +120,7 @@ pub struct Tracer {
     /// Current span for each trace.
     current_spans: RwLock<HashMap<String, Span>>,
     /// Service name.
-    service_name: String,
+    _service_name: String,
 }
 
 impl Tracer {
@@ -129,7 +129,7 @@ impl Tracer {
         Self {
             traces: RwLock::new(HashMap::new()),
             current_spans: RwLock::new(HashMap::new()),
-            service_name: service_name.to_string(),
+            _service_name: service_name.to_string(),
         }
     }
 

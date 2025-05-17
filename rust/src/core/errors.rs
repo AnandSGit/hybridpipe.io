@@ -74,7 +74,27 @@ pub enum Error {
     #[error("I/O error: {0}")]
     IOError(#[from] std::io::Error),
 
+    /// ContextCancelled is returned when an operation is cancelled by a context.
+    #[error("context cancelled")]
+    ContextCancelled,
+
+    /// IoError is returned when an I/O error occurs (alias for IOError for compatibility).
+    #[error("I/O error: {0}")]
+    IoError(String),
+
     /// Other is returned when an error doesn't fit into any of the above categories.
     #[error("other error: {0}")]
     Other(String),
+}
+
+impl From<zmq::Error> for Error {
+    fn from(err: zmq::Error) -> Self {
+        Error::Other(format!("ZeroMQ error: {}", err))
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Error::SerializationError(format!("JSON error: {}", err))
+    }
 }

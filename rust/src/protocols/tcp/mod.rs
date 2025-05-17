@@ -10,7 +10,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+// IO imports removed as they're not used
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, RwLock};
 use tokio::task::JoinHandle;
@@ -46,17 +46,17 @@ struct TcpPacket {
     /// Client connections maps pipe names to their TCP streams
     client_connections: Arc<RwLock<HashMap<String, Framed<TcpStream, LengthDelimitedCodec>>>>,
     /// Server listener is the TCP listener for server mode
-    server_listener: Arc<Mutex<Option<TcpListener>>>,
+    _server_listener: Arc<Mutex<Option<TcpListener>>>,
     /// Server task is the task handling incoming connections in server mode
-    server_task: Arc<Mutex<Option<JoinHandle<()>>>>,
+    _server_task: Arc<Mutex<Option<JoinHandle<()>>>>,
     /// Subscribers maps pipe names to their callback functions
     subscribers: Arc<RwLock<HashMap<String, Process>>>,
     /// Subscriber tasks maps pipe names to their subscriber task handles
-    subscriber_tasks: Arc<RwLock<HashMap<String, JoinHandle<()>>>>,
+    _subscriber_tasks: Arc<RwLock<HashMap<String, JoinHandle<()>>>>,
     /// Connected flag indicates if the packet is connected
-    connected: Arc<Mutex<bool>>,
+    _connected: Arc<Mutex<bool>>,
     /// Server mode flag indicates if the packet is in server mode
-    server_mode: bool,
+    _server_mode: bool,
 }
 
 impl Packet {
@@ -115,7 +115,7 @@ impl HybridPipe for Packet {
 
             // Create a task to handle incoming connections
             // We can't clone RwLock directly, but we can use a reference to it
-            let subscribers = &self.subscribers;
+            let _subscribers = &self.subscribers;
 
             // Create a separate task for the listener
             let listener_clone = listener;
@@ -151,13 +151,13 @@ impl HybridPipe for Packet {
             // Create a task to process incoming connections
             // We need to create a new TcpPacket to avoid capturing self
             let tcp_packet = Arc::new(TcpPacket {
-                server_mode: self.server_mode,
-                connected: Arc::new(Mutex::new(*self.connected.lock().unwrap())),
+                _server_mode: self.server_mode,
+                _connected: Arc::new(Mutex::new(*self.connected.lock().unwrap())),
                 subscribers: Arc::new(RwLock::new(HashMap::new())),
                 client_connections: Arc::new(RwLock::new(HashMap::new())),
-                server_listener: Arc::new(Mutex::new(None)),
-                server_task: Arc::new(Mutex::new(None)),
-                subscriber_tasks: Arc::new(RwLock::new(HashMap::new())),
+                _server_listener: Arc::new(Mutex::new(None)),
+                _server_task: Arc::new(Mutex::new(None)),
+                _subscriber_tasks: Arc::new(RwLock::new(HashMap::new())),
             });
 
             tokio::spawn(async move {
@@ -174,7 +174,7 @@ impl HybridPipe for Packet {
                     // Spawn a new task to handle this connection
                     tokio::spawn(async move {
                         // Process messages from this connection
-                        let addr = match pipe_clone.parse::<SocketAddr>() {
+                        let _addr = match pipe_clone.parse::<SocketAddr>() {
                             Ok(addr) => addr,
                             Err(e) => {
                                 error!("Invalid address in pipe {}: {}", pipe_clone, e);

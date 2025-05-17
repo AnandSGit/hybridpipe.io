@@ -19,7 +19,7 @@ pub use errors::{Error, Result};
 pub use registry::{deploy_router, register_router_factory};
 
 /// Process defines the callback function that should be called when a client receives a message.
-pub type Process = Box<dyn Fn(Vec<u8>) -> Result<()> + Send + Sync>;
+pub type Process = Arc<dyn Fn(Vec<u8>) -> Result<()> + Send + Sync>;
 
 /// Extension methods for HybridPipe that are not object-safe.
 /// These are implemented as standalone functions.
@@ -35,7 +35,7 @@ pub mod ext {
         F: Fn(Box<dyn Any + Send + Sync>) + Send + Sync + 'static,
     {
         // Create a Process wrapper for the callback
-        let process: Process = Box::new(move |data| {
+        let process: Process = Arc::new(move |data| {
             let decoded: Box<dyn Any + Send + Sync> = match decode::<T>(&data) {
                 Ok(decoded) => Box::new(decoded),
                 Err(e) => return Err(e),

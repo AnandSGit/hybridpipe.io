@@ -36,7 +36,7 @@ pub struct Packet {
     /// Server is the RabbitMQ server address
     server: String,
     /// Config holds the RabbitMQ configuration
-    config: RabbitMQConfig,
+    _config: RabbitMQConfig,
     /// Connected flag indicates if the packet is connected
     connected: Mutex<bool>,
     /// Exchange name
@@ -60,7 +60,7 @@ impl Packet {
             consumers: RwLock::new(HashMap::new()),
             consumer_tasks: RwLock::new(HashMap::new()),
             server: config.r_server_port.clone(),
-            config,
+            _config: config,
             connected: Mutex::new(false),
             exchange: "hybridpipe".to_string(),
         }
@@ -253,7 +253,7 @@ impl HybridPipe for Packet {
 
         // Declare a queue
         let queue_name = format!("hybridpipe.{}", pipe);
-        let queue = channel
+        let _queue = channel
             .queue_declare(
                 &queue_name,
                 QueueDeclareOptions {

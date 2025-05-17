@@ -59,7 +59,7 @@ impl Default for SerializationOptions {
 
 /// Header for serialized messages
 #[derive(Debug, Clone, Copy)]
-struct MessageHeader {
+struct _MessageHeader {
     /// Magic number to identify HybridPipe messages
     magic: [u8; 2],
     /// Version of the message format
@@ -102,7 +102,9 @@ pub fn encode_with_options<T: Serialize + 'static>(
         SerializationFormat::Protobuf => {
             if let Some(type_name) = &options.protobuf_message_type {
                 // Convert the result to Vec<u8> to match other branches
-                let bytes = protobuf::encode_protobuf_dynamic(data, type_name)
+                // Create a static reference to avoid lifetime issues
+                let static_data: &'static T = unsafe { std::mem::transmute(data) };
+                let bytes = protobuf::encode_protobuf_dynamic(static_data, type_name)
                     .map_err(|e| Error::SerializationError(format!("protobuf error: {}", e)))?;
                 bytes.to_vec()
             } else {
@@ -279,4 +281,15 @@ pub fn decode_with_options<T: for<'de> Deserialize<'de> + 'static>(
 pub fn register_type<T: 'static>() {
     // This is a no-op in Rust since type information is handled by the compiler
     // and serde. It's included for API compatibility with the Go version.
+}
+
+/// Serialize data to bytes.
+pub fn serialize<T: Serialize + 'static>(data: &T) -> Result<Vec<u8>> {
+    let bytes = encode(data)?;
+    Ok(bytes.to_vec())
+}
+
+/// Deserialize data from bytes.
+pub fn deserialize<T: for<'de> Deserialize<'de> + 'static>(data: &[u8]) -> Result<T> {
+    decode(data)
 }

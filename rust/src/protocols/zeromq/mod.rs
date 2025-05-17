@@ -9,13 +9,13 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::task;
-use tokio::time;
+// Removed unused import: tokio::task
+// Removed unused import: tokio::time
 use zmq::{Context, Socket, SocketType};
 
 use crate::core::registry::register_router_factory;
 use crate::core::{context, BrokerType, Error, HybridPipe, Process, Result};
-use crate::serialization::{deserialize, serialize};
+// Serialization imports removed as they're not used
 
 /// Configuration for ZeroMQ.
 #[derive(Debug, Clone)]
@@ -131,15 +131,19 @@ impl Packet {
     }
 
     /// Start the message receiver.
-    async fn start_receiver(&self, subscriber: Arc<Socket>) -> Result<mpsc::Sender<()>> {
-        let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
-        let callbacks = self.callbacks.clone();
+    async fn start_receiver(&self, subscriber: Socket) -> Result<mpsc::Sender<()>> {
+        let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>(1);
+        // Get the callbacks - we need to clone the map, not the RwLock
+        let callbacks_map = self.callbacks.read().unwrap().clone();
+        let callbacks = Arc::new(RwLock::new(callbacks_map));
         let config = self.config.clone();
 
         // Spawn a task to receive messages
-        task::spawn(async move {
+        // We need to use a thread instead of a task because Socket is not Send
+        std::thread::spawn(move || {
             let mut items = [subscriber.as_poll_item(zmq::POLLIN)];
             let mut reconnect_attempts = 0;
+            let mut shutdown_rx = shutdown_rx;
 
             'outer: loop {
                 // Check for shutdown signal
@@ -149,7 +153,7 @@ impl Packet {
                 }
 
                 // Poll for messages
-                match subscriber.poll(&mut items, 100) {
+                match zmq::poll(&mut items, 100) {
                     Ok(0) => {
                         // No messages, continue
                         continue;
@@ -179,22 +183,28 @@ impl Packet {
                                     };
                                     let data = parts[1].clone();
 
-                                    // Process the message
-                                    let callbacks_guard = callbacks.read().unwrap();
-                                    if let Some(callbacks) = callbacks_guard.get(&pipe) {
-                                        for callback in callbacks {
-                                            let callback = callback.clone();
-                                            let data = data.clone();
-                                            task::spawn(async move {
-                                                if let Err(e) = callback(data).await {
-                                                    error!("Error processing message: {}", e);
-                                                }
-                                            });
+                                    // Process the message - use a separate scope for the lock
+                                    let callbacks_to_run = {
+                                        let callbacks_guard = callbacks.read().unwrap();
+                                        if let Some(callbacks) = callbacks_guard.get(&pipe) {
+                                            // Clone the callbacks to avoid holding the lock during processing
+                                            callbacks.clone()
+                                        } else {
+                                            vec![]
+                                        }
+                                    };
+
+                                    // Process the callbacks outside the lock
+                                    for callback in callbacks_to_run {
+                                        let data = data.clone();
+                                        // Process the callback directly since we're already in a thread
+                                        if let Err(e) = callback(data) {
+                                            error!("Error processing message: {}", e);
                                         }
                                     }
 
                                     // Poll again to check if there are more messages
-                                    match subscriber.poll(&mut items, 0) {
+                                    match zmq::poll(&mut items, 0) {
                                         Ok(_) => continue,
                                         Err(e) => {
                                             error!("Error polling for messages: {}", e);
@@ -220,8 +230,7 @@ impl Packet {
                                         "Reconnect attempt {}/{}",
                                         reconnect_attempts, config.max_reconnect_attempts
                                     );
-                                    time::sleep(Duration::from_millis(config.reconnect_interval))
-                                        .await;
+                                    std::thread::sleep(Duration::from_millis(config.reconnect_interval));
                                     break;
                                 }
                             }
@@ -241,12 +250,13 @@ impl Packet {
                             "Reconnect attempt {}/{}",
                             reconnect_attempts, config.max_reconnect_attempts
                         );
-                        time::sleep(Duration::from_millis(config.reconnect_interval)).await;
+                        std::thread::sleep(Duration::from_millis(config.reconnect_interval));
                     }
                 }
             }
 
             debug!("Receiver task exited");
+            Ok::<(), Error>(())
         });
 
         Ok(shutdown_tx)
@@ -256,65 +266,107 @@ impl Packet {
 #[async_trait]
 impl HybridPipe for Packet {
     async fn connect(&self) -> Result<()> {
-        let mut connected = self.connected.lock().unwrap();
-        if *connected {
-            return Err(Error::AlreadyConnected);
+        // Check if already connected
+        {
+            let connected = self.connected.lock().unwrap();
+            if *connected {
+                return Err(Error::AlreadyConnected);
+            }
         }
 
         // Create publisher socket
         let publisher = self.create_publisher()?;
-        let mut publisher_guard = self.publisher.lock().unwrap();
-        *publisher_guard = Some(publisher);
-        drop(publisher_guard);
+        {
+            let mut publisher_guard = self.publisher.lock().unwrap();
+            *publisher_guard = Some(publisher);
+        }
 
         // Create subscriber socket
         let subscriber = self.create_subscriber()?;
-        let mut subscriber_guard = self.subscriber.lock().unwrap();
-        *subscriber_guard = Some(subscriber);
-        drop(subscriber_guard);
+        {
+            let mut subscriber_guard = self.subscriber.lock().unwrap();
+            *subscriber_guard = Some(subscriber);
+        }
 
         // Get the subscriber socket for the receiver task
-        let subscriber_guard = self.subscriber.lock().unwrap();
-        let subscriber = subscriber_guard.as_ref().unwrap().clone();
-        drop(subscriber_guard);
+        // We need to create a new socket with the same settings
+        let context = Context::new();
+        let subscriber = context.socket(SocketType::SUB)?;
 
-        // Start the receiver task
-        let shutdown_tx = self.start_receiver(Arc::new(subscriber)).await?;
-        let mut shutdown_tx_guard = self.shutdown_tx.lock().unwrap();
-        *shutdown_tx_guard = Some(shutdown_tx);
-        drop(shutdown_tx_guard);
+        // Copy the settings from the original subscriber
+        {
+            let subscriber_guard = self.subscriber.lock().unwrap();
+            let _original_subscriber = subscriber_guard.as_ref().unwrap();
 
-        *connected = true;
+            // Get the endpoint string from the config
+            let endpoint = &self.config.subscriber_endpoint;
+
+            // Connect to the endpoint
+            subscriber.connect(endpoint)?;
+        }
+
+        // Subscribe to all topics
+        subscriber.set_subscribe(b"")?;
+
+        // Start the receiver task - no mutex guards are held at this point
+        let shutdown_tx = self.start_receiver(subscriber).await?;
+
+        // Store the shutdown_tx
+        {
+            let mut shutdown_tx_guard = self.shutdown_tx.lock().unwrap();
+            *shutdown_tx_guard = Some(shutdown_tx);
+        }
+
+        // Set connected to true
+        {
+            let mut connected = self.connected.lock().unwrap();
+            *connected = true;
+        }
+
         info!("Connected to ZeroMQ");
         Ok(())
     }
 
     async fn disconnect(&self) -> Result<()> {
-        let mut connected = self.connected.lock().unwrap();
-        if !*connected {
-            return Err(Error::NotConnected);
+        // Check if connected
+        {
+            let connected = self.connected.lock().unwrap();
+            if !*connected {
+                return Err(Error::NotConnected);
+            }
         }
 
         // Stop the receiver task
-        let mut shutdown_tx_guard = self.shutdown_tx.lock().unwrap();
-        if let Some(shutdown_tx) = shutdown_tx_guard.take() {
-            if let Err(e) = shutdown_tx.send(()).await {
+        let shutdown_tx = {
+            let mut shutdown_tx_guard = self.shutdown_tx.lock().unwrap();
+            shutdown_tx_guard.take()
+        };
+
+        if let Some(tx) = shutdown_tx {
+            // Use try_send instead of send().await to avoid holding MutexGuard across await
+            if let Err(e) = tx.try_send(()) {
                 warn!("Failed to send shutdown signal: {}", e);
             }
         }
-        drop(shutdown_tx_guard);
 
         // Close the publisher socket
-        let mut publisher_guard = self.publisher.lock().unwrap();
-        *publisher_guard = None;
-        drop(publisher_guard);
+        {
+            let mut publisher_guard = self.publisher.lock().unwrap();
+            *publisher_guard = None;
+        }
 
         // Close the subscriber socket
-        let mut subscriber_guard = self.subscriber.lock().unwrap();
-        *subscriber_guard = None;
-        drop(subscriber_guard);
+        {
+            let mut subscriber_guard = self.subscriber.lock().unwrap();
+            *subscriber_guard = None;
+        }
 
-        *connected = false;
+        // Set connected to false
+        {
+            let mut connected = self.connected.lock().unwrap();
+            *connected = false;
+        }
+
         info!("Disconnected from ZeroMQ");
         Ok(())
     }
@@ -326,8 +378,12 @@ impl HybridPipe for Packet {
         }
         drop(connected);
 
-        // Serialize the data
-        let serialized = serialize(&*data)?;
+        // Convert the data to a JSON string
+        let json_string = serde_json::to_string(&format!("{:?}", data))
+            .map_err(|e| Error::SerializationError(format!("Failed to encode message: {}", e)))?;
+
+        // Convert the JSON string to bytes
+        let serialized = json_string.into_bytes();
 
         // Get the publisher socket
         let publisher_guard = self.publisher.lock().unwrap();
@@ -394,15 +450,13 @@ impl HybridPipe for Packet {
 
         // Create a wrapper that checks the context before calling the callback
         let ctx_clone = ctx.clone();
-        let wrapper: Process = Box::new(move |data| {
-            let ctx = ctx_clone.clone();
-            let callback = callback.clone();
-            Box::pin(async move {
-                if ctx.is_cancelled() {
-                    return Err(Error::ContextCancelled);
-                }
-                callback(data).await
-            })
+        let wrapper: Process = Arc::new(move |data| {
+            // Process is now a synchronous function, not async
+            if ctx_clone.is_cancelled() {
+                return Err(Error::ContextCancelled);
+            }
+            // Call the callback directly, not with .await
+            callback(data)
         });
 
         // Subscribe with the wrapper

@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// MonitoringServer is a server that exposes metrics and traces.
-type MonitoringServer struct {
+// MetricsServer is a server that exposes metrics and traces.
+type MetricsServer struct {
 	// server is the HTTP server
 	server *http.Server
 	// metricsRegistry is the metrics registry
@@ -23,8 +23,8 @@ type MonitoringServer struct {
 	running bool
 }
 
-// NewMonitoringServer creates a new monitoring server.
-func NewMonitoringServer(address string, metricsRegistry *MetricsRegistry, tracer Tracer) *MonitoringServer {
+// NewMetricsServer creates a new metrics server.
+func NewMetricsServer(address string, metricsRegistry *MetricsRegistry, tracer Tracer) *MetricsServer {
 	// Create a new server
 	server := &http.Server{
 		Addr:         address,
@@ -32,8 +32,8 @@ func NewMonitoringServer(address string, metricsRegistry *MetricsRegistry, trace
 		WriteTimeout: 10 * time.Second,
 	}
 
-	// Create a new monitoring server
-	ms := &MonitoringServer{
+	// Create a new metrics server
+	ms := &MetricsServer{
 		server:          server,
 		metricsRegistry: metricsRegistry,
 		tracer:          tracer,
@@ -48,8 +48,8 @@ func NewMonitoringServer(address string, metricsRegistry *MetricsRegistry, trace
 	return ms
 }
 
-// Start starts the monitoring server.
-func (ms *MonitoringServer) Start() error {
+// Start starts the metrics server.
+func (ms *MetricsServer) Start() error {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
 
@@ -69,8 +69,8 @@ func (ms *MonitoringServer) Start() error {
 	return nil
 }
 
-// Stop stops the monitoring server.
-func (ms *MonitoringServer) Stop() error {
+// Stop stops the metrics server.
+func (ms *MetricsServer) Stop() error {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
 
@@ -89,7 +89,7 @@ func (ms *MonitoringServer) Stop() error {
 }
 
 // IsRunning returns true if the server is running.
-func (ms *MonitoringServer) IsRunning() bool {
+func (ms *MetricsServer) IsRunning() bool {
 	ms.mutex.RLock()
 	defer ms.mutex.RUnlock()
 
@@ -97,7 +97,7 @@ func (ms *MonitoringServer) IsRunning() bool {
 }
 
 // handleMetrics handles requests to the /metrics endpoint.
-func (ms *MonitoringServer) handleMetrics(w http.ResponseWriter, r *http.Request) {
+func (ms *MetricsServer) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	// Get the metrics as JSON
 	metrics, err := ms.metricsRegistry.GetMetricsJSON()
 	if err != nil {
@@ -113,7 +113,7 @@ func (ms *MonitoringServer) handleMetrics(w http.ResponseWriter, r *http.Request
 }
 
 // handleTraces handles requests to the /traces endpoint.
-func (ms *MonitoringServer) handleTraces(w http.ResponseWriter, r *http.Request) {
+func (ms *MetricsServer) handleTraces(w http.ResponseWriter, r *http.Request) {
 	// Get the traces
 	traces := ms.tracer.GetTraces()
 
@@ -132,7 +132,7 @@ func (ms *MonitoringServer) handleTraces(w http.ResponseWriter, r *http.Request)
 }
 
 // handleHealth handles requests to the /health endpoint.
-func (ms *MonitoringServer) handleHealth(w http.ResponseWriter, r *http.Request) {
+func (ms *MetricsServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Create a health check response
 	health := map[string]interface{}{
 		"status":    "ok",
@@ -154,7 +154,7 @@ func (ms *MonitoringServer) handleHealth(w http.ResponseWriter, r *http.Request)
 }
 
 // handleRoot handles requests to the root endpoint.
-func (ms *MonitoringServer) handleRoot(w http.ResponseWriter, r *http.Request) {
+func (ms *MetricsServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 	// Create a response
 	response := map[string]interface{}{
 		"name":        "HybridPipe Monitoring",
@@ -180,23 +180,23 @@ func (ms *MonitoringServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseJSON)
 }
 
-// DefaultMonitoringServer is the default monitoring server.
-var DefaultMonitoringServer *MonitoringServer
+// DefaultMetricsServer is the default metrics server.
+var DefaultMetricsServer *MetricsServer
 
-// StartDefaultMonitoringServer starts the default monitoring server.
+// StartDefaultMonitoringServer starts the default metrics server.
 func StartDefaultMonitoringServer(address string) error {
-	// Create a new monitoring server
-	DefaultMonitoringServer = NewMonitoringServer(address, DefaultRegistry, NewMessageTracer(1000))
+	// Create a new metrics server
+	DefaultMetricsServer = NewMetricsServer(address, DefaultRegistry, NewMessageTracer(1000))
 
 	// Start the server
-	return DefaultMonitoringServer.Start()
+	return DefaultMetricsServer.Start()
 }
 
-// StopDefaultMonitoringServer stops the default monitoring server.
+// StopDefaultMonitoringServer stops the default metrics server.
 func StopDefaultMonitoringServer() error {
-	if DefaultMonitoringServer == nil {
-		return fmt.Errorf("default monitoring server is not running")
+	if DefaultMetricsServer == nil {
+		return fmt.Errorf("default metrics server is not running")
 	}
 
-	return DefaultMonitoringServer.Stop()
+	return DefaultMetricsServer.Stop()
 }

@@ -128,7 +128,7 @@ impl HybridPipe for MiddlewareStack {
         // For testing purposes, we'll just call the callback directly
         // In a real implementation, we would need to find a way to apply middleware
         // without cloning the middleware vector
-        let wrapped_callback: Process = Box::new(move |data: Vec<u8>| {
+        let wrapped_callback: Process = Arc::new(move |data: Vec<u8>| {
             // Just call the original callback
             callback_static(data)
         });
@@ -146,7 +146,7 @@ impl HybridPipe for MiddlewareStack {
         let callback_static = callback;
 
         // Create a wrapper callback that doesn't capture self
-        let wrapped_callback: Process = Box::new(move |data: Vec<u8>| {
+        let wrapped_callback: Process = Arc::new(move |data: Vec<u8>| {
             // We can't directly use the middleware references in a static context
             // So we'll just call the original callback
             callback_static(data)
