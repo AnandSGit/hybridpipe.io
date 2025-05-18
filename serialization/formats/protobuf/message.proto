@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package hybridpipe;
+
+option go_package = "github.com/AnandSGit/hybridpipe.io/serialization/protobuf";
+
+// Message represents a HybridPipe message
+message Message {
+  // Header contains metadata about the message
+  Header header = 1;
+  
+  // Payload contains the actual message content
+  bytes payload = 2;
+  
+  // Metadata contains additional information about the message
+  map<string, string> metadata = 3;
+}
+
+// Header contains metadata about the message
+message Header {
+  // Version of the message format
+  uint32 version = 1;
+  
+  // Format of the serialized payload
+  SerializationFormat format = 2;
+  
+  // Whether the payload is compressed
+  bool compression = 3;
+  
+  // Timestamp when the message was created (milliseconds since epoch)
+  uint64 timestamp = 4;
+  
+  // Unique identifier for the message
+  string message_id = 5;
+  
+  // Identifier for correlating related messages
+  string correlation_id = 6;
+  
+  // Pipe name to send replies to
+  string reply_to = 7;
+  
+  // Time-to-live in milliseconds
+  uint32 ttl = 8;
+  
+  // Message priority (higher values indicate higher priority)
+  uint32 priority = 9;
+  
+  // MIME type of the payload content
+  string content_type = 10;
+}
+
+// SerializationFormat represents the format used for serialization
+enum SerializationFormat {
+  // Unknown format
+  FORMAT_UNKNOWN = 0;
+  
+  // JSON format
+  FORMAT_JSON = 1;
+  
+  // Protocol Buffers format
+  FORMAT_PROTOBUF = 2;
+  
+  // MessagePack format
+  FORMAT_MSGPACK = 3;
+  
+  // CBOR format
+  FORMAT_CBOR = 4;
+  
+  // BSON format
+  FORMAT_BSON = 5;
+}
