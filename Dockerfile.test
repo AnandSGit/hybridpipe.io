@@ -1,0 +1,45 @@
+# Dockerfile for testing HybridPipe with all dependencies
+FROM python:3.12-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
+    wget \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
+
+# Install all optional protocol dependencies
+# Phase 2 protocols
+RUN pip install --no-cache-dir \
+    confluent-kafka \
+    aio-pika \
+    paho-mqtt
+
+# Phase 3 protocols
+RUN pip install --no-cache-dir \
+    nats-py \
+    pyzmq \
+    python-qpid-proton
+
+# Additional protocols for future phases
+RUN pip install --no-cache-dir \
+    py-amqp || echo "py-amqp installation failed"
+
+# Copy source code
+COPY . .
+
+# Install package in development mode
+RUN pip install -e .
+
+# Run tests by default
+CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]

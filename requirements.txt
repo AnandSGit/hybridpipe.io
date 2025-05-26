@@ -1,0 +1,4 @@
+# Core dependencies for HybridPipe
+pydantic>=2.0.0
+structlog>=23.0.0
+toml>=0.10.0

@@ -1,0 +1,224 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+        test-type: ["unit", "integration"]
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      rabbitmq:
+        image: rabbitmq:3.12-alpine
+        ports:
+          - 5672:5672
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mosquitto:
+        image: eclipse-mosquitto:2.0
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "mosquitto_pub -h localhost -t test -m health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Install optional protocol dependencies
+        run: |
+          # Phase 2 protocols
+          pip install confluent-kafka aio-pika paho-mqtt
+          # Phase 3 protocols
+          pip install nats-py pyzmq python-qpid-proton
+          # Additional protocols
+          pip install py-amqp || echo "py-amqp installation failed"
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Lint with ruff
+        run: |
+          ruff check hybridpipe/
+          ruff format --check hybridpipe/
+
+      - name: Type check with mypy
+        run: mypy hybridpipe/
+
+      - name: Run unit tests
+        if: matrix.test-type == 'unit'
+        run: |
+          pytest tests/test_core.py tests/test_protocols.py -v --cov=hybridpipe --cov-report=xml
+
+      - name: Run integration tests
+        if: matrix.test-type == 'integration'
+        run: |
+          pytest tests/test_phase2_protocols.py -v -m integration --tb=short
+          pytest tests/test_phase3_protocols.py -v -m integration --tb=short
+        env:
+          REDIS_HOST: localhost
+          RABBITMQ_HOST: localhost
+          MQTT_HOST: localhost
+          NATS_HOST: localhost
+
+      - name: Upload coverage to Codecov
+        if: matrix.test-type == 'unit' && matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  kafka-tests:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Start Kafka
+        run: |
+          docker-compose -f docker-compose.test.yml up -d zookeeper kafka
+          # Wait for Kafka to be ready
+          timeout 60 bash -c 'until docker-compose -f docker-compose.test.yml exec -T kafka kafka-broker-api-versions --bootstrap-server localhost:9092; do sleep 2; done'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install confluent-kafka
+          pip install -e .
+
+      - name: Run Kafka tests
+        run: |
+          pytest tests/test_phase2_protocols.py::TestKafkaProtocol -v -m integration
+        env:
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+
+      - name: Stop Kafka
+        if: always()
+        run: docker-compose -f docker-compose.test.yml down
+
+  performance-tests:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install memory-profiler psutil
+          pip install -e .
+
+      - name: Run performance benchmarks
+        run: |
+          python examples/basic_usage.py
+          python -c "
+          import asyncio
+          from hybridpipe import deploy_router, BrokerType
+          import time
+
+          async def benchmark():
+              router = await deploy_router(BrokerType.MOCK)
+
+              # Benchmark message throughput
+              start = time.time()
+              for i in range(10000):
+                  await router.dispatch('bench', {'id': i})
+              end = time.time()
+
+              rate = 10000 / (end - start)
+              print(f'Mock protocol throughput: {rate:.0f} messages/second')
+
+              await router.disconnect()
+
+          asyncio.run(benchmark())
+          "
+
+      - name: Memory usage test
+        run: |
+          python -c "
+          import asyncio
+          import psutil
+          import os
+          from hybridpipe import deploy_router, BrokerType
+
+          async def memory_test():
+              process = psutil.Process(os.getpid())
+              initial_memory = process.memory_info().rss / 1024 / 1024  # MB
+
+              router = await deploy_router(BrokerType.MOCK)
+
+              # Create many subscriptions
+              for i in range(1000):
+                  await router.subscribe(f'test.{i}', lambda d, m: None)
+
+              final_memory = process.memory_info().rss / 1024 / 1024  # MB
+              memory_increase = final_memory - initial_memory
+
+              print(f'Memory usage: {initial_memory:.1f}MB -> {final_memory:.1f}MB (+{memory_increase:.1f}MB)')
+
+              await router.disconnect()
+
+          asyncio.run(memory_test())
+          "
