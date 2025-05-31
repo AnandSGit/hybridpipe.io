@@ -26,6 +26,7 @@ from hybridpipe.core.errors import ConnectionError, ProtocolError
 from hybridpipe.core.registry import protocol_implementation
 from hybridpipe.serialization.engine import encode, decode
 
+
 __all__ = ["MockHybridPipe"]
 
 
@@ -335,7 +336,7 @@ class MockHybridPipe(HybridPipe):
                 break
             except Exception as e:
                 # Log error but continue processing
-                import structlog
+                import structlog # type: ignore
                 logger = structlog.get_logger()
                 logger.error(
                     "Error in mock delivery loop",
@@ -382,7 +383,7 @@ class MockHybridPipe(HybridPipe):
                             
                     except Exception as e:
                         # Log delivery error but continue
-                        import structlog
+                        import structlog # type: ignore
                         logger = structlog.get_logger()
                         logger.error(
                             "Error delivering message to subscriber",
