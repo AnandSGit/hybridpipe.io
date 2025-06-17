@@ -1,5 +1,9 @@
 # HybridPipe - Rust Implementation
 
+> ⚠️ **NOTICE**: Rust build process is currently disabled to streamline development.
+> See `../RUST_BUILD_DISABLED.md` for information on re-enabling Rust builds.
+> The Python implementation remains fully functional and actively developed.
+
 A unified messaging interface for microservices and distributed systems, implemented in Rust.
 
 ## Overview
